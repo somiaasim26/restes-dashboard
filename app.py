@@ -158,14 +158,19 @@ engine = create_engine(
     f"{st.secrets['postgres']['host']}:{st.secrets['postgres']['port']}/"
     f"{st.secrets['postgres']['database']}"
 )
-st.title("🔍 Debug: Database Check")
+#st.title("🔍 Debug: Database Check")
 
-try:
-    test_df = pd.read_sql("SELECT * FROM treated_restaurant_data", engine)
-    st.success("✅ Connected to DB and retrieved records.")
-    st.dataframe(test_df)
-except Exception as e:
-    st.error(f"❌ Error pulling data: {e}")
+#try:
+#    test_df = pd.read_sql("SELECT * FROM treated_restaurant_data", engine)
+ #   st.success("✅ Connected to DB and retrieved records.")
+ #   st.dataframe(test_df)
+#except Exception as e:
+ #   st.error(f"❌ Error pulling data: {e}")
+
+def get_supabase_image_url(filename):
+    base_url = "https://jvrvslujjqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
+    return f"{base_url}{filename}"
+
 
 
 
@@ -338,7 +343,10 @@ elif section == "Restaurant Profile":
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
-                    container.image(imgs.iloc[0]["image_path"], caption=image_type_map[img_type])
+                    filename = imgs.iloc[idx]["image_path"].split("\\")[-1]
+                    url = get_supabase_image_url(filename)
+                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
+
                 else:
                     if "img_idx" not in st.session_state:
                         st.session_state["img_idx"] = {}
