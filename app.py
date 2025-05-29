@@ -347,8 +347,12 @@ elif section == "Restaurant Profile":
                 elif len(imgs) == 1:
                     idx = 0
                     full_path = imgs.iloc[idx]["image_path"]
+                    st.write("FULL PATH CHECK:", full_path)  # 👈 logs path to sidebar
                     filename = os.path.basename(full_path)
+                    st.write("FILENAME CHECK:", filename)  # 👈 logs extracted file name
                     url = get_supabase_image_url(filename)
+                    st.write("FINAL URL CHECK:", url)  # 👈 logs final image URL
+
                     container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
 
                 else:
