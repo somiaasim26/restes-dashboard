@@ -3,6 +3,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 import time
 
+
 # --- Page Setup ---
 st.set_page_config(page_title="PRA Restaurant Dashboard", layout="wide")
 
@@ -85,8 +86,11 @@ st.markdown("""
 approved_users = {
     "somiaasim26@gmail.com": "123PRA**!",
     "hamzaafsar94@gmail.com": "123PRA**!",
-    "amna@example.com": "password456",
-    "shezreen@example.com": "abc@123"
+    "mcb2270@columbia.edu": "123PRA**!",
+    "asadsherafghan@gmail.com": "123PRA**!",
+    "adnanqk@gmail.com": "123PRA**!",
+    "anders_jensen@hks.harvard.edu" : "123PRA**!",
+    "amnanoorfatimalse@gmail.com": "123PRA**!"
 }
 
 if "authenticated" not in st.session_state:
@@ -148,7 +152,13 @@ if st.session_state.get("section") == "Welcome":
 
 
 # --- DB Setup ---
-engine = create_engine("postgresql://postgres:123PRA@localhost:5432/TreatedRestaurants")
+# Build the connection string from Streamlit secrets
+engine = create_engine(
+    f"postgresql://{st.secrets['postgres']['user']}:{st.secrets['postgres']['password']}@"
+    f"{st.secrets['postgres']['host']}:{st.secrets['postgres']['port']}/"
+    f"{st.secrets['postgres']['database']}"
+)
+
 @st.cache_data
 def load_table(name):
     try:
