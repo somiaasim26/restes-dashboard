@@ -306,18 +306,12 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
     # --- Select Restaurant ---
-st.write("📋 Columns in 'Treated Restaurants':", list(dataframes['Treated Restaurants'].columns))
-
-if 'id' in dataframes['Treated Restaurants'].columns and 'restaurant_name' in dataframes['Treated Restaurants'].columns:
+    
     rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
-else:
-    st.error("❌ Required columns 'id' or 'restaurant_name' not found in 'Treated Restaurants'.")
-    st.stop()
-
-
     rest_df['id'] = rest_df['id'].astype(str)
     rest_df['label'] = rest_df['id'] + " - " + rest_df['restaurant_name'].fillna("")
-    rest_df = rest_df.sort_values(by="id", key=lambda x: x.astype(int))
+    rest_df = rest_df.sort_values(by="id", key=lambda x: x.str.zfill(10))  # or use the regex option above
+
 
     selected_label = st.selectbox("Search by ID or Name", rest_df['label'].tolist())
     selected_id = selected_label.split(" - ")[0]
