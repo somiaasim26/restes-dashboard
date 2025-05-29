@@ -170,11 +170,16 @@ except Exception as e:
 
 
 @st.cache_data
+
 def load_table(name):
     try:
-        return pd.read_sql(f"SELECT * FROM {name}", engine)
-    except:
+        df = pd.read_sql(f"SELECT * FROM {name}", engine)
+        st.write(f"✅ Loaded `{name}` with columns:", df.columns.tolist())
+        return df
+    except Exception as e:
+        st.warning(f"⚠️ Failed to load `{name}`: {e}")
         return pd.DataFrame()
+
 
 
 # --- Sidebar Navigation ---
@@ -195,6 +200,8 @@ tables = {
 }
 
 dataframes = {label: load_table(tbl) for tbl, label in tables.items()}
+st.write("🧩 Available dataframe keys:", list(dataframes.keys()))
+
 
 # --- Current Stats / KPI ---
 if section == "Current Stats / KPI":
@@ -306,7 +313,15 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
     # --- Select Restaurant ---
-    st.write("Treated Restaurants Columns:", dataframes['Treated Restaurants'].columns.tolist())
+    try:
+    df = dataframes["Treated Restaurants"]
+    st.write("📊 Treated Restaurants shape:", df.shape)
+    st.write("📋 Columns:", df.columns.tolist())
+    rest_df = df[["id", "restaurant_name"]].dropna(subset=["id"])
+    except Exception as e:
+        st.error(f"🔥 Error loading Treated Restaurants for profile: {e}")
+        st.stop()
+
 
     rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
     rest_df['id'] = rest_df['id'].astype(str)
