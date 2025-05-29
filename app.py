@@ -192,10 +192,9 @@ for sql_name, label in tables.items():
     try:
         df = pd.read_sql(f"SELECT * FROM {sql_name}", engine)
         dataframes[label] = df
-        st.success(f"✅ Loaded `{sql_name}` with columns:")
-        st.write(df.columns.tolist())  # Optional: remove later
     except Exception as e:
         st.warning(f"⚠ Failed to load `{sql_name}`: {e}")
+
 
 
 
@@ -246,7 +245,7 @@ elif section == "Data Browser":
 
     if group == "Core Tables":
         table = st.selectbox("Select Core Table", [k for k in tables if "treated" in k or "officer" in k or "pra_" in k])
-        df = load_table(table)
+        df = pd.read_table(table)
         col = st.radio("Search by", ["id", "restaurant_name"], horizontal=True)
         if col in df.columns:
             val = st.selectbox("Search Value", sorted(df[col].astype(str).dropna().unique()))
@@ -255,7 +254,7 @@ elif section == "Data Browser":
             st.dataframe(df)
     else:
         table = st.selectbox("Select Survey Table", [k for k in tables if k.startswith("s1") or k.startswith("s2")])
-        df = load_table(table)
+        df = pd.read_table(table)
         col = st.selectbox("Select Column to Filter", df.columns)
         vals = df[col].dropna().astype(str).unique()
         selected = st.multiselect("Filter Values", sorted(vals))
@@ -397,7 +396,7 @@ elif section == "Restaurant Profile":
 
     # --- Survey Answers ---
     st.markdown("### 🏢 Restaurant Information")
-    survey_df = dataframes["Survey Data"]
+    survey_df = pd.read_table("surveydata_treatmentgroup")
 
 
     if not survey_df.empty:
