@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
 import time
+import os
 
 
 # --- Page Setup ---
@@ -344,18 +345,11 @@ elif section == "Restaurant Profile":
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
-                    import os
-
-                    # Extract just the filename from the full path stored in DB
+                    idx = 0
                     full_path = imgs.iloc[idx]["image_path"]
                     filename = os.path.basename(full_path)
-
-                    # Build the full public Supabase URL
                     url = get_supabase_image_url(filename)
-
-                    # Display the image
                     container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
-
 
                 else:
                     if "img_idx" not in st.session_state:
