@@ -183,6 +183,7 @@ tables = {
     "officer_compliance_updates": "Officer Updates",
     "pra_system_updates": "PRA System",
     "restaurant_return_data": "Return Data",  # ✅ ADD THIS
+    "surveydata_treatmentgroup": "Survey Data",
     "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
     "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3"
 }
@@ -396,7 +397,19 @@ elif section == "Restaurant Profile":
 
     # --- Survey Answers ---
     st.markdown("### 🏢 Restaurant Information")
-    survey_df = pd.read_table("surveydata_treatmentgroup")
+    survey_df = dataframes["Survey Data"]
+
+    if not survey_df.empty:
+        survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+        if not survey_row.empty:
+            row = survey_row.iloc[0]
+            # ... continue with the label_map and rendering as you already have ...
+        else:
+            st.info("No survey data found for this restaurant.")
+    else:
+        st.warning("Survey table is empty or not connected.")
+
+
 
 
     if not survey_df.empty:
