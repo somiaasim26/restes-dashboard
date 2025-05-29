@@ -306,7 +306,8 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
     # --- Select Restaurant ---
-    
+    st.write("Treated Restaurants Columns:", dataframes['Treated Restaurants'].columns.tolist())
+
     rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
     rest_df['id'] = rest_df['id'].astype(str)
     rest_df['label'] = rest_df['id'] + " - " + rest_df['restaurant_name'].fillna("")
