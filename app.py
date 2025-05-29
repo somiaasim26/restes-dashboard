@@ -314,10 +314,10 @@ elif section == "Restaurant Profile":
 
     # --- Select Restaurant ---
     try:
-    df = dataframes["Treated Restaurants"]
-    st.write("📊 Treated Restaurants shape:", df.shape)
-    st.write("📋 Columns:", df.columns.tolist())
-    rest_df = df[["id", "restaurant_name"]].dropna(subset=["id"])
+        df = dataframes["Treated Restaurants"]
+        st.write("📊 Treated Restaurants shape:", df.shape)
+        st.write("📋 Columns:", df.columns.tolist())
+        rest_df = df[["id", "restaurant_name"]].dropna(subset=["id"])
     except Exception as e:
         st.error(f"🔥 Error loading Treated Restaurants for profile: {e}")
         st.stop()
