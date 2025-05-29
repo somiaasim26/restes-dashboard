@@ -88,10 +88,11 @@ approved_users = {
     "somiaasim26@gmail.com": "123PRA**!",
     "hamzaafsar94@gmail.com": "123PRA**!",
     "mcb2270@columbia.edu": "123PRA**!",
-    "asadsherafghan@gmail.com": "123PRA**!",
+    "asad.sherafghan@gmail.com": "123PRA**!",
     "adnanqk@gmail.com": "123PRA**!",
     "anders_jensen@hks.harvard.edu" : "123PRA**!",
-    "amnanoorfatimalse@gmail.com": "123PRA**!"
+    "amnanoorfatimalse@gmail.com": "123PRA**!",
+    "ssshezreenshah@gmail.com": "123PRA**!"
 }
 
 if "authenticated" not in st.session_state:
@@ -171,6 +172,7 @@ engine = create_engine(
 def get_supabase_image_url(filename):
     base_url = "https://jrvvslujqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
     return f"{base_url}{filename}"
+
 
 
 
