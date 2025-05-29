@@ -399,7 +399,7 @@ elif section == "Restaurant Profile":
 
     # --- Survey Answers ---
     st.markdown("### 🏢 Restaurant Information")
-    survey_df = dataframes("surveydata_treatmentgroup")
+    survey_df = dataframes["Survey Data"]
 
     if not survey_df.empty:
         survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
