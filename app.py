@@ -345,38 +345,22 @@ elif section == "Restaurant Profile":
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
-                    
-
-                    st.write("🟡 Image row:", imgs)
-
-                    # Extract just the filename from the full path stored in DB
-                    full_path = str(imgs.iloc[0]["image_path"])
-                    st.write("🔍 FULL PATH CHECK:", full_path)
-
-                    filename = os.path.basename(full_path)
-                    st.write("🧩 FILENAME CHECK:", filename)
-
-                    # Build the full public Supabase URL
+                    # Only one image
+                    filename = str(imgs.iloc[0]["image_path"])
                     url = get_supabase_image_url(filename)
-                    st.write("🔗 FINAL URL CHECK:", url)
-
-                    # Display the image
                     container.image(url, caption=f"{image_type_map[img_type]} 1")
-
-
                 else:
+                    # Multiple images
                     if "img_idx" not in st.session_state:
                         st.session_state["img_idx"] = {}
                     if img_type not in st.session_state["img_idx"]:
                         st.session_state["img_idx"][img_type] = 0
 
                     idx = st.session_state["img_idx"][img_type]
-                    full_path = imgs.iloc[idx]["image_path"]
-                    filename = os.path.basename(full_path)
+                    filename = str(imgs.iloc[idx]["image_path"])
                     url = get_supabase_image_url(filename)
 
                     container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
-
 
                     left, right = container.columns([1, 1])
                     with left:
@@ -385,6 +369,7 @@ elif section == "Restaurant Profile":
                     with right:
                         if st.button("➡", key=f"{img_type}_next") and idx < len(imgs) - 1:
                             st.session_state["img_idx"][img_type] += 1
+
 
             img_cols = st.columns(3)
             for i, img_type in enumerate(["front", "menu", "receipt"]):
