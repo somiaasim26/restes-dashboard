@@ -171,14 +171,6 @@ except Exception as e:
 
 @st.cache_data
 
-def load_table(name):
-    try:
-        return pd.read_sql(f"SELECT * FROM {name}", engine)
-    except:
-        return pd.DataFrame()
-
-
-
 
 # --- Sidebar Navigation ---
 st.sidebar.title("📁 PRA-System")
@@ -197,8 +189,16 @@ tables = {
     "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3"
 }
 
-dataframes = {label: load_table(tbl) for tbl, label in tables.items()}
-st.write("🧩 Available dataframe keys:", list(dataframes.keys()))
+dataframes = {}
+for sql_name, label in tables.items():
+    try:
+        df = pd.read_sql(f"SELECT * FROM {sql_name}", engine)
+        dataframes[label] = df
+        st.success(f"✅ Loaded `{sql_name}` with columns:")
+        st.write(df.columns.tolist())  # Optional: remove later
+    except Exception as e:
+        st.warning(f"⚠ Failed to load `{sql_name}`: {e}")
+
 
 
 # --- Current Stats / KPI ---
@@ -400,6 +400,7 @@ elif section == "Restaurant Profile":
     # --- Survey Answers ---
     st.markdown("### 🏢 Restaurant Information")
     survey_df = dataframes["Survey Data"]
+
 
     if not survey_df.empty:
         survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
