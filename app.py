@@ -306,14 +306,14 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
     # --- Select Restaurant ---
-    if 'id' in dataframes['Treated Restaurants'].columns and 'restaurant_name' in dataframes['Treated Restaurants'].columns:
-        st.write("📋 Columns in 'Treated Restaurants':", list(dataframes['Treated Restaurants'].columns))
+st.write("📋 Columns in 'Treated Restaurants':", list(dataframes['Treated Restaurants'].columns))
 
-        rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
-    ...
+if 'id' in dataframes['Treated Restaurants'].columns and 'restaurant_name' in dataframes['Treated Restaurants'].columns:
+    rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
 else:
     st.error("❌ Required columns 'id' or 'restaurant_name' not found in 'Treated Restaurants'.")
     st.stop()
+
 
     rest_df['id'] = rest_df['id'].astype(str)
     rest_df['label'] = rest_df['id'] + " - " + rest_df['restaurant_name'].fillna("")
