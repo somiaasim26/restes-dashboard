@@ -169,8 +169,6 @@ except Exception as e:
 
 
 
-@st.cache_data
-
 
 # --- Sidebar Navigation ---
 st.sidebar.title("📁 PRA-System")
