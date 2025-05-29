@@ -168,8 +168,9 @@ engine = create_engine(
  #   st.error(f"❌ Error pulling data: {e}")
 
 def get_supabase_image_url(filename):
-    base_url = "https://jvrvslujjqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
+    base_url = "https://jrvvslujqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
     return f"{base_url}{filename}"
+
 
 
 
@@ -344,9 +345,17 @@ elif section == "Restaurant Profile":
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
                     import os
-                    filename = os.path.basename(imgs.iloc[idx]["image_path"])
+
+                    # Extract just the filename from the full path stored in DB
+                    full_path = imgs.iloc[idx]["image_path"]
+                    filename = os.path.basename(full_path)
+
+                    # Build the full public Supabase URL
                     url = get_supabase_image_url(filename)
-                    container.image(url, caption=f"{image_type_map[img_type]}")
+
+                    # Display the image
+                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
+
 
                 else:
                     if "img_idx" not in st.session_state:
@@ -355,7 +364,12 @@ elif section == "Restaurant Profile":
                         st.session_state["img_idx"][img_type] = 0
 
                     idx = st.session_state["img_idx"][img_type]
-                    container.image(imgs.iloc[idx]["image_path"], caption=f"{image_type_map[img_type]} {idx+1}")
+                    full_path = imgs.iloc[idx]["image_path"]
+                    filename = os.path.basename(full_path)
+                    url = get_supabase_image_url(filename)
+
+                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
+
 
                     left, right = container.columns([1, 1])
                     with left:
