@@ -158,6 +158,16 @@ engine = create_engine(
     f"{st.secrets['postgres']['host']}:{st.secrets['postgres']['port']}/"
     f"{st.secrets['postgres']['database']}"
 )
+st.title("🔍 Debug: Database Check")
+
+try:
+    test_df = pd.read_sql("SELECT * FROM treated_restaurant_data LIMIT 5", engine)
+    st.success("✅ Connected to DB and retrieved records.")
+    st.dataframe(test_df)
+except Exception as e:
+    st.error(f"❌ Error pulling data: {e}")
+
+
 
 @st.cache_data
 def load_table(name):
