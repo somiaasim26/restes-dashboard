@@ -333,6 +333,18 @@ elif section == "Restaurant Profile":
     st.subheader(f"🏪 {selected_name}")
 
     # --- Image Display ---
+    import os
+
+    # Helper to clean filename
+    def clean_filename(path):
+        return os.path.basename(str(path)).strip().strip('"').strip("'")
+
+    # Helper to build public Supabase URL
+    def get_supabase_image_url(filename):
+        base_url = "https://jrvvslujqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
+        return f"{base_url}{filename}"
+
+    # --- Image Display ---
     st.markdown("### 🖼️  Restaurant Images")
     image_type_map = {"front": "Front Image", "menu": "Menu Image", "receipt": "Receipt Image"}
 
@@ -342,22 +354,12 @@ elif section == "Restaurant Profile":
         if not img_df.empty:
             def show_image_slider(img_type, container):
                 imgs = img_df[img_df["image_type"] == img_type]
-                
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
-                
                 elif len(imgs) == 1:
-                    filename = imgs.iloc[0]["image_path"].strip()
+                    filename = clean_filename(imgs.iloc[0]["image_path"])
                     url = get_supabase_image_url(filename)
-                    st.write("📦 DEBUG:", {
-                        "Selected Index": idx if len(imgs) > 1 else 0,
-                        "Image Type": img_type,
-                        "Raw Filename": repr(filename),
-                        "Generated URL": url
-                    })
-
                     container.image(url, caption=f"{image_type_map[img_type]} 1")
-                
                 else:
                     if "img_idx" not in st.session_state:
                         st.session_state["img_idx"] = {}
@@ -365,15 +367,8 @@ elif section == "Restaurant Profile":
                         st.session_state["img_idx"][img_type] = 0
 
                     idx = st.session_state["img_idx"][img_type]
-                    filename = imgs.iloc[idx]["image_path"].strip()
+                    filename = clean_filename(imgs.iloc[idx]["image_path"])
                     url = get_supabase_image_url(filename)
-                    st.write("📦 DEBUG:", {
-                        "Selected Index": idx if len(imgs) > 1 else 0,
-                        "Image Type": img_type,
-                        "Raw Filename": repr(filename),
-                        "Generated URL": url
-                    })
-
 
                     container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
 
@@ -385,18 +380,11 @@ elif section == "Restaurant Profile":
                         if st.button("➡", key=f"{img_type}_next") and idx < len(imgs) - 1:
                             st.session_state["img_idx"][img_type] += 1
 
-
-
             img_cols = st.columns(3)
             for i, img_type in enumerate(["front", "menu", "receipt"]):
-                images_exist = not img_df[img_df["image_type"] == img_type].empty
                 with img_cols[i]:
                     st.markdown(f"#### 📸 {image_type_map[img_type]}")
-                    if images_exist:
-                        show_image_slider(img_type, st.container())
-                    else:
-                        st.info(f"No {image_type_map[img_type]}.")
-
+                    show_image_slider(img_type, st.container())
         else:
             st.warning("No images found for this restaurant.")
     except Exception as e:
