@@ -345,15 +345,24 @@ elif section == "Restaurant Profile":
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
-                    idx = 0
-                    full_path = imgs.iloc[idx]["image_path"]
-                    st.write("FULL PATH CHECK:", full_path)  # 👈 logs path to sidebar
-                    filename = os.path.basename(full_path)
-                    st.write("FILENAME CHECK:", filename)  # 👈 logs extracted file name
-                    url = get_supabase_image_url(filename)
-                    st.write("FINAL URL CHECK:", url)  # 👈 logs final image URL
+                    
 
-                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
+                    st.write("🟡 Image row:", imgs)
+
+                    # Extract just the filename from the full path stored in DB
+                    full_path = str(imgs.iloc[0]["image_path"])
+                    st.write("🔍 FULL PATH CHECK:", full_path)
+
+                    filename = os.path.basename(full_path)
+                    st.write("🧩 FILENAME CHECK:", filename)
+
+                    # Build the full public Supabase URL
+                    url = get_supabase_image_url(filename)
+                    st.write("🔗 FINAL URL CHECK:", url)
+
+                    # Display the image
+                    container.image(url, caption=f"{image_type_map[img_type]} 1")
+
 
                 else:
                     if "img_idx" not in st.session_state:
