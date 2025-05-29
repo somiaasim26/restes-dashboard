@@ -349,6 +349,13 @@ elif section == "Restaurant Profile":
                 elif len(imgs) == 1:
                     filename = imgs.iloc[0]["image_path"].strip()
                     url = get_supabase_image_url(filename)
+                    st.write("📦 DEBUG:", {
+                        "Selected Index": idx if len(imgs) > 1 else 0,
+                        "Image Type": img_type,
+                        "Raw Filename": repr(filename),
+                        "Generated URL": url
+                    })
+
                     container.image(url, caption=f"{image_type_map[img_type]} 1")
                 
                 else:
@@ -360,6 +367,13 @@ elif section == "Restaurant Profile":
                     idx = st.session_state["img_idx"][img_type]
                     filename = imgs.iloc[idx]["image_path"].strip()
                     url = get_supabase_image_url(filename)
+                    st.write("📦 DEBUG:", {
+                        "Selected Index": idx if len(imgs) > 1 else 0,
+                        "Image Type": img_type,
+                        "Raw Filename": repr(filename),
+                        "Generated URL": url
+                    })
+
 
                     container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
 
