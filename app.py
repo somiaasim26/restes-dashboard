@@ -343,7 +343,7 @@ elif section == "Restaurant Profile":
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
-                    import os
+                  import os
                     filename = os.path.basename(imgs.iloc[idx]["image_path"])
                     url = get_supabase_image_url(filename)
                     container.image(url, caption=f"{image_type_map[img_type]}")
