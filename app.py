@@ -173,12 +173,10 @@ except Exception as e:
 
 def load_table(name):
     try:
-        df = pd.read_sql(f"SELECT * FROM {name}", engine)
-        st.write(f"✅ Loaded `{name}` with columns:", df.columns.tolist())
-        return df
-    except Exception as e:
-        st.warning(f"⚠️ Failed to load `{name}`: {e}")
+        return pd.read_sql(f"SELECT * FROM {name}", engine)
+    except:
         return pd.DataFrame()
+
 
 
 
@@ -384,7 +382,7 @@ elif section == "Restaurant Profile":
 
     # --- Basic Info ---
     st.markdown("### 🗃️ Basic Info")
-    treated_df = load_table("treated_restaurant_data")
+    treated_df = dataframes["Treated Restaurants"]
 
     if not treated_df.empty:
         restaurant_row = treated_df[treated_df['id'].astype(str) == selected_id]
@@ -401,7 +399,7 @@ elif section == "Restaurant Profile":
 
     # --- Survey Answers ---
     st.markdown("### 🏢 Restaurant Information")
-    survey_df = load_table("surveydata_treatmentgroup")
+    survey_df = dataframes("surveydata_treatmentgroup")
 
     if not survey_df.empty:
         survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
@@ -463,8 +461,8 @@ elif section == "Restaurant Profile":
 elif section == "Return Summary":
     st.title("📊 Return Summary Viewer")
 
-    treated_df = load_table("treated_restaurant_data")
-    return_df = load_table("restaurant_return_data")
+    treated_df = dataframes("treated_restaurant_data")
+    return_df = dataframes("restaurant_return_data")
 
     return_df.columns = return_df.columns.str.strip().str.upper().str.replace(" ", "_")
 
