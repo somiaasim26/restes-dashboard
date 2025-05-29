@@ -308,7 +308,7 @@ elif section == "Restaurant Profile":
     # --- Select Restaurant ---
     st.write("Treated Restaurants Columns:", dataframes['Treated Restaurants'].columns.tolist())
 
-    rest_df = dataframes['treated_restaurant_data'][["id", "restaurant_name"]].dropna(subset=["id"])
+    rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
     rest_df['id'] = rest_df['id'].astype(str)
     rest_df['label'] = rest_df['id'] + " - " + rest_df['restaurant_name'].fillna("")
     rest_df = rest_df.sort_values(by="id", key=lambda x: x.str.zfill(10))  # or use the regex option above
