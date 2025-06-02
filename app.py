@@ -92,7 +92,7 @@ approved_users = {
     "adnanqk@gmail.com": "123PRA**!",
     "anders_jensen@hks.harvard.edu" : "123PRA**!",
     "amnanoorfatimalse@gmail.com": "123PRA**!",
-    "ssshezreenshah@gmail.com": "123PRA**!"
+    "s.s.shezreenshah@gmail.com": "123PRA**!"
 }
 
 if "authenticated" not in st.session_state:
@@ -174,11 +174,6 @@ def get_supabase_image_url(filename):
     return f"{base_url}{filename}"
 
 
-
-
-
-
-
 # --- Sidebar Navigation ---
 st.sidebar.title("📁 PRA-System")
 section = st.sidebar.radio("Navigation", [
@@ -248,14 +243,14 @@ if section == "Current Stats / KPI":
     
 #----------------------------------------------------------------------------------------------------------------------------------
 
-# --- Data Browser (leave unchanged) ---
+# --- Data Browser ---
 elif section == "Data Browser":
     st.header("📂 Explore Database Tables")
     group = st.radio("Choose Dataset", ["Core Tables", "Survey Tables"], horizontal=True)
 
     if group == "Core Tables":
         table = st.selectbox("Select Core Table", [k for k in tables if "treated" in k or "officer" in k or "pra_" in k])
-        df = pd.read_table(table)
+        df = pd.load_table(table)
         col = st.radio("Search by", ["id", "restaurant_name"], horizontal=True)
         if col in df.columns:
             val = st.selectbox("Search Value", sorted(df[col].astype(str).dropna().unique()))
@@ -264,7 +259,7 @@ elif section == "Data Browser":
             st.dataframe(df)
     else:
         table = st.selectbox("Select Survey Table", [k for k in tables if k.startswith("s1") or k.startswith("s2")])
-        df = pd.read_table(table)
+        df = pd.load_table(table)
         col = st.selectbox("Select Column to Filter", df.columns)
         vals = df[col].dropna().astype(str).unique()
         selected = st.multiselect("Filter Values", sorted(vals))
