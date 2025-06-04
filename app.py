@@ -249,8 +249,11 @@ elif section == "Data Browser":
     group = st.radio("Choose Dataset", ["Core Tables", "Survey Tables"], horizontal=True)
 
     if group == "Core Tables":
-        table = st.selectbox("Select Core Table", [k for k in tables if "treated" in k or "officer" in k or "pra_" in k])
-        df = dataframes[table]
+        core_labels = [v for k, v in tables.items() if "treated" in k or "officer" in k or "pra_" in k]
+        selected_label = st.selectbox("Select Core Table", core_labels)
+
+        selected_table = [k for k, v in tables.items() if v == selected_label][0]
+        df = dataframes[selected_label]
 
         col = st.radio("Search by", ["id", "restaurant_name"], horizontal=True)
         if col in df.columns:
@@ -258,6 +261,7 @@ elif section == "Data Browser":
             st.dataframe(df[df[col].astype(str) == val])
         else:
             st.dataframe(df)
+
     else:
         table = st.selectbox("Select Survey Table", [k for k in tables if k.startswith("s1") or k.startswith("s2")])
         df = dataframes[table]
