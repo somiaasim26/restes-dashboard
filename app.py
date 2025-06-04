@@ -237,7 +237,7 @@ if section == "Current Stats / KPI":
 
     st.markdown("### 📝 PRA Compliance Form")
     st.markdown("[📩 Launch Officer Form](https://restes.net/form)")
-    st.code("Submit online: https://restes.net/form")
+    
 
     
     
