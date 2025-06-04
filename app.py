@@ -236,8 +236,8 @@ if section == "Current Stats / KPI":
     with kpi_cols[3]: st.markdown(f'<div class="metric-box kpi-gray">🗂 Surveyed Entries<br>{total_surveyed}</div>', unsafe_allow_html=True)
 
     st.markdown("### 📝 PRA Compliance Form")
-    st.markdown("👉 [Launch Officer Form](http://localhost:8502)")
-    st.code("Run locally with: streamlit run Formv2.py")
+    st.markdown("[📩 Launch Officer Form](https://restes.net/form)")
+    st.code("Submit online: https://restes.net/form")
 
     
     
