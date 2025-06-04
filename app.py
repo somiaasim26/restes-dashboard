@@ -358,11 +358,14 @@ elif section == "Restaurant Profile":
             if not img_df.empty:
                 def show_image_slider(img_type, container):
                     imgs = img_df[img_df["image_type"] == img_type]
-                    
-                    if imgs.empty:
+
+                    if imgs.empty or len(imgs) == 0:
                         container.info(f"No {image_type_map[img_type]} available.")
-                    
+                        return
+
                     elif len(imgs) == 1:
+                       
+
                         filename = clean_filename(imgs.iloc[0]["image_path"])
                         url = get_supabase_image_url(filename)
                         #st.caption(f"📎 URL: {url}")
