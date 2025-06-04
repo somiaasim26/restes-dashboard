@@ -236,8 +236,8 @@ if section == "Current Stats / KPI":
     with kpi_cols[3]: st.markdown(f'<div class="metric-box kpi-gray">🗂 Surveyed Entries<br>{total_surveyed}</div>', unsafe_allow_html=True)
 
     st.markdown("### 📝 PRA Compliance Form")
-    #st.markdown("[📩 Launch Officer Form](https://restes.net/form)")
-    #st.code("Submit online: https://restes.net/form")
+    #st.markdown("[📩 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
+    #st.code("Submit online: https://restes-dashboard-form.streamlit.app/")
 
     
     
@@ -312,7 +312,7 @@ elif section == "Change Log":
 elif section == "Submit Form":
     st.header("📥 Submit a Compliance Update")
     st.markdown("Click below to open the officer form.")
-    #st.link_button("Open Form in New Tab", "https://restes.net/form")
+    #st.link_button("Open Form in New Tab", "https://restes-dashboard-form.streamlit.app/")
 
     
 # --- Restaurant Landing Page -----
