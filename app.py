@@ -250,7 +250,8 @@ elif section == "Data Browser":
 
     if group == "Core Tables":
         table = st.selectbox("Select Core Table", [k for k in tables if "treated" in k or "officer" in k or "pra_" in k])
-        df = pd.load_table(table)
+        df = dataframes[table]
+
         col = st.radio("Search by", ["id", "restaurant_name"], horizontal=True)
         if col in df.columns:
             val = st.selectbox("Search Value", sorted(df[col].astype(str).dropna().unique()))
@@ -259,7 +260,8 @@ elif section == "Data Browser":
             st.dataframe(df)
     else:
         table = st.selectbox("Select Survey Table", [k for k in tables if k.startswith("s1") or k.startswith("s2")])
-        df = pd.load_table(table)
+        df = dataframes[table]
+
         col = st.selectbox("Select Column to Filter", df.columns)
         vals = df[col].dropna().astype(str).unique()
         selected = st.multiselect("Filter Values", sorted(vals))
