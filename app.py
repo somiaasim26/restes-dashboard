@@ -357,33 +357,37 @@ elif section == "Restaurant Profile":
             if not img_df.empty:
                 def show_image_slider(img_type, container):
                     imgs = img_df[img_df["image_type"] == img_type]
-                if imgs.empty:
-                    container.info(f"No {image_type_map[img_type]} available.")
-                elif len(imgs) == 1:
-                    filename = clean_filename(imgs.iloc[0]["image_path"])
-                    url = get_supabase_image_url(filename)
-                    container.image(url, caption=f"{image_type_map[img_type]} 1")
-                else:
-                    if "img_idx" not in st.session_state:
-                        st.session_state["img_idx"] = {}
-                    if img_type not in st.session_state["img_idx"]:
-                        st.session_state["img_idx"][img_type] = 0
+                    
+                    if imgs.empty:
+                        container.info(f"No {image_type_map[img_type]} available.")
+                    
+                    elif len(imgs) == 1:
+                        filename = clean_filename(imgs.iloc[0]["image_path"])
+                        url = get_supabase_image_url(filename)
+                        st.caption(f"📎 URL: {url}")
+                        container.image(url, caption=f"{image_type_map[img_type]} 1")
+                    
+                    else:
+                        if "img_idx" not in st.session_state:
+                            st.session_state["img_idx"] = {}
+                        if img_type not in st.session_state["img_idx"]:
+                            st.session_state["img_idx"][img_type] = 0
 
-                    idx = st.session_state["img_idx"][img_type]
-                    filename = clean_filename(imgs.iloc[idx]["image_path"])
-                    url = get_supabase_image_url(filename)
-                    st.caption(f"📎 URL: {url}")
+                        idx = st.session_state["img_idx"][img_type]
+                        filename = clean_filename(imgs.iloc[idx]["image_path"])
+                        url = get_supabase_image_url(filename)
+                        st.caption(f"📎 URL: {url}")
 
-                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1} of {len(imgs)}")
+                        container.image(url, caption=f"{image_type_map[img_type]} {idx+1} of {len(imgs)}")
 
+                        left, right = container.columns([1, 1])
+                        with left:
+                            if st.button("⬅", key=f"{img_type}_prev") and idx > 0:
+                                st.session_state["img_idx"][img_type] -= 1
+                        with right:
+                            if st.button("➡", key=f"{img_type}_next") and idx < len(imgs) - 1:
+                                st.session_state["img_idx"][img_type] += 1
 
-                    left, right = container.columns([1, 1])
-                    with left:
-                        if st.button("⬅", key=f"{img_type}_prev") and idx > 0:
-                            st.session_state["img_idx"][img_type] -= 1
-                    with right:
-                        if st.button("➡", key=f"{img_type}_next") and idx < len(imgs) - 1:
-                            st.session_state["img_idx"][img_type] += 1
 
             img_cols = st.columns(3)
             for i, img_type in enumerate(["front", "menu", "receipt"]):
