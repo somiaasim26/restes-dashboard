@@ -377,7 +377,7 @@ elif section == "Restaurant Profile":
                         idx = st.session_state["img_idx"][img_type]
                         filename = clean_filename(imgs.iloc[idx]["image_path"])
                         url = get_supabase_image_url(filename)
-                        st.caption(f"📎 URL: {url}")
+                        #st.caption(f"📎 URL: {url}")
 
                         container.image(url, caption=f"{image_type_map[img_type]} {idx+1} of {len(imgs)}")
 
