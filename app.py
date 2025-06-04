@@ -390,8 +390,8 @@ elif section == "Restaurant Profile":
                 with img_cols[i]:
                     st.markdown(f"#### 📸 {image_type_map[img_type]}")
                     show_image_slider(img_type, st.container())
-        else:
-            st.warning("No images found for this restaurant.")
+            else:
+                st.warning("No images found for this restaurant.")
     except Exception as e:
         st.warning(f"Could not load images. Error: {e}")
 
