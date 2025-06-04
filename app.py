@@ -338,8 +338,9 @@ elif section == "Restaurant Profile":
 
     # Helper to build public Supabase URL
     def get_supabase_image_url(filename):
-        base_url = "https://jrvvslujqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
+        base_url = "https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/"
         return f"{base_url}{filename}"
+
 
     # --- Image Display ---
     st.markdown("### 🖼️  Restaurant Images")
