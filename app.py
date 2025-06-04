@@ -346,7 +346,13 @@ elif section == "Restaurant Profile":
     image_type_map = {"front": "Front Image", "menu": "Menu Image", "receipt": "Receipt Image"}
 
     try:
-        img_df = pd.read_sql(f"SELECT * FROM restaurant_images WHERE restaurant_id = '{selected_id}' ORDER BY image_type", engine)
+            img_df = pd.read_sql(f"""
+                SELECT * FROM restaurant_images 
+                WHERE restaurant_id = '{selected_id}' 
+                ORDER BY 
+                    image_type,
+                    image_path
+            """, engine)
 
         if not img_df.empty:
             def show_image_slider(img_type, container):
@@ -367,7 +373,8 @@ elif section == "Restaurant Profile":
                     filename = clean_filename(imgs.iloc[idx]["image_path"])
                     url = get_supabase_image_url(filename)
 
-                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1}")
+                    container.image(url, caption=f"{image_type_map[img_type]} {idx+1} of {len(imgs)}")
+
 
                     left, right = container.columns([1, 1])
                     with left:
