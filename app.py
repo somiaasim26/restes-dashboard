@@ -312,7 +312,8 @@ elif section == "Change Log":
 elif section == "Submit Form":
     st.header("📥 Submit a Compliance Update")
     st.markdown("Click below to open the officer form.")
-    st.link_button("Open Form in New Tab", "http://localhost:8502")
+    st.link_button("Open Form in New Tab", "https://restes.net/form")
+
     
 # --- Restaurant Landing Page -----
 
