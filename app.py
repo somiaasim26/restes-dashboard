@@ -354,9 +354,9 @@ elif section == "Restaurant Profile":
                     image_path
             """, engine)
 
-        if not img_df.empty:
-            def show_image_slider(img_type, container):
-                imgs = img_df[img_df["image_type"] == img_type]
+            if not img_df.empty:
+                def show_image_slider(img_type, container):
+                    imgs = img_df[img_df["image_type"] == img_type]
                 if imgs.empty:
                     container.info(f"No {image_type_map[img_type]} available.")
                 elif len(imgs) == 1:
