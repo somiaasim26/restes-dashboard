@@ -359,29 +359,31 @@ elif section == "Restaurant Profile":
                 def show_image_slider(img_type, container):
                     imgs = img_df[img_df["image_type"] == img_type]
 
-                    if imgs.empty or len(imgs) == 0:
+                    if imgs is None or imgs.empty or len(imgs) == 0:
                         container.info(f"No {image_type_map[img_type]} available.")
                         return
 
-                    elif len(imgs) == 1:
-                       
+                    # Always safe to proceed from here on
+                    if len(imgs) == 1:
+                        try:
+                            filename = clean_filename(imgs.iloc[0]["image_path"])
+                            url = get_supabase_image_url(filename)
+                            container.image(url, caption=f"{image_type_map[img_type]} 1")
+                        except Exception as e:
+                            container.error(f"⚠️ Could not load image. {e}")
+                        return
 
-                        filename = clean_filename(imgs.iloc[0]["image_path"])
-                        url = get_supabase_image_url(filename)
-                        #st.caption(f"📎 URL: {url}")
-                        container.image(url, caption=f"{image_type_map[img_type]} 1")
-                    
-                    else:
-                        if "img_idx" not in st.session_state:
-                            st.session_state["img_idx"] = {}
-                        if img_type not in st.session_state["img_idx"]:
-                            st.session_state["img_idx"][img_type] = 0
+                    # Multiple images
+                    if "img_idx" not in st.session_state:
+                        st.session_state["img_idx"] = {}
+                    if img_type not in st.session_state["img_idx"]:
+                        st.session_state["img_idx"][img_type] = 0
 
-                        idx = st.session_state["img_idx"][img_type]
+                    idx = st.session_state["img_idx"][img_type]
+
+                    try:
                         filename = clean_filename(imgs.iloc[idx]["image_path"])
                         url = get_supabase_image_url(filename)
-                        #st.caption(f"📎 URL: {url}")
-
                         container.image(url, caption=f"{image_type_map[img_type]} {idx+1} of {len(imgs)}")
 
                         left, right = container.columns([1, 1])
@@ -391,6 +393,9 @@ elif section == "Restaurant Profile":
                         with right:
                             if st.button("➡", key=f"{img_type}_next") and idx < len(imgs) - 1:
                                 st.session_state["img_idx"][img_type] += 1
+
+                    except Exception as e:
+                        container.error(f"⚠️ Could not load image. {e}")
 
 
             img_cols = st.columns(3)
