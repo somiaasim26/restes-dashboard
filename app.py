@@ -263,8 +263,9 @@ elif section == "Data Browser":
             st.dataframe(df)
 
     else:
-        table = st.selectbox("Select Survey Table", [k for k in tables if k.startswith("s1") or k.startswith("s2")])
-        df = dataframes[table]
+        survey_labels = [v for k, v in tables.items() if k.startswith("s1") or k.startswith("s2")]
+        selected_label = st.selectbox("Select Survey Table", survey_labels)
+        df = dataframes[selected_label]
 
         col = st.selectbox("Select Column to Filter", df.columns)
         vals = df[col].dropna().astype(str).unique()
@@ -272,6 +273,7 @@ elif section == "Data Browser":
         if selected:
             df = df[df[col].astype(str).isin(selected)]
         st.dataframe(df)
+
 
 # --- Survey Search ---
 elif section == "Survey Search":
