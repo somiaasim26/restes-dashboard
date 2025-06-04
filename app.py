@@ -365,7 +365,7 @@ elif section == "Restaurant Profile":
                     elif len(imgs) == 1:
                         filename = clean_filename(imgs.iloc[0]["image_path"])
                         url = get_supabase_image_url(filename)
-                        st.caption(f"📎 URL: {url}")
+                        #st.caption(f"📎 URL: {url}")
                         container.image(url, caption=f"{image_type_map[img_type]} 1")
                     
                     else:
@@ -391,12 +391,17 @@ elif section == "Restaurant Profile":
 
 
             img_cols = st.columns(3)
+            any_images = False
             for i, img_type in enumerate(["front", "menu", "receipt"]):
-                with img_cols[i]:
-                    st.markdown(f"#### 📸 {image_type_map[img_type]}")
-                    show_image_slider(img_type, st.container())
-            else:
+                if not img_df[img_df["image_type"] == img_type].empty:
+                    any_images = True
+                    with img_cols[i]:
+                        st.markdown(f"#### 📸 {image_type_map[img_type]}")
+                        show_image_slider(img_type, st.container())
+
+            if not any_images:
                 st.warning("No images found for this restaurant.")
+
     except Exception as e:
         st.warning(f"Could not load images. Error: {e}")
 
