@@ -327,9 +327,53 @@ elif section == "Submit Form":
 elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
+    # --- Monthly Summary KPIs ---
+    #st.markdown("### 📊 Monthly Reporting Summary")
+    df = dataframes["Treated Restaurants"]
+
+    registered_df = df[df["compliance_status"] == "Registered"]
+    unregistered_df = df[df["compliance_status"] != "Registered"]
+
+    filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
+    non_filers_df = df[df["ntn"].isna() | (df["ntn"].astype(str).str.strip() == "")]
+
+    ac_df = df[df["air_conditioner"] == "Yes"]
+    card_df = df[df["credit_debit_card_acceptance"] == "Yes"]
+    foodcourt_df = df[df["food_court"] == "Yes"]
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        with st.expander(f"✅ Registered ({len(registered_df)})"):
+            st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
+
+    with col2:
+        with st.expander(f"❌ Unregistered ({len(unregistered_df)})"):
+            st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
+
+    with col3:
+        with st.expander(f"🧾 Filers ({len(filers_df)})"):
+            st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
+
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        with st.expander(f"📛 Non-Filers ({len(non_filers_df)})"):
+            st.dataframe(non_filers_df[["id", "restaurant_name", "restaurant_address"]])
+
+    with col5:
+        with st.expander(f"❄ AC Present ({len(ac_df)})"):
+            st.dataframe(ac_df[["id", "restaurant_name", "restaurant_address"]])
+
+    with col6:
+        with st.expander(f"💳 Accept Card ({len(card_df)})"):
+            st.dataframe(card_df[["id", "restaurant_name", "restaurant_address"]])
+
+    col7, _, _ = st.columns(3)
+    with col7:
+        with st.expander(f"🏢 Located in Food Court ({len(foodcourt_df)})"):
+            st.dataframe(foodcourt_df[["id", "restaurant_name", "restaurant_address"]])
+
+
     # --- Select Restaurant ---
-
-
 
     rest_df = dataframes['Treated Restaurants'][["id", "restaurant_name"]].dropna(subset=["id"])
     rest_df['id'] = rest_df['id'].astype(str)
