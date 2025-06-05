@@ -435,6 +435,70 @@ elif section == "Restaurant Profile":
             info_df = restaurant_row[display_fields].T.reset_index()
             info_df.columns = ['Field', 'Value']
             st.table(info_df)
+
+            st.table(info_df)
+
+            export_col1, export_col2 = st.columns(2)
+
+            with export_col1:
+                if st.button("📥 Download Profile as PDF"):
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", size=12)
+
+                    pdf.set_font("Arial", 'B', 14)
+                    pdf.cell(200, 10, f"Restaurant Summary: {selected_name}", ln=True)
+                    pdf.ln(5)
+
+                    pdf.set_font("Arial", size=12)
+                    for i, row in info_df.iterrows():
+                        pdf.multi_cell(0, 10, f"{row['Field']}: {row['Value']}")
+
+                    pdf.ln(5)
+
+                    if not survey_df.empty:
+                        survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+                        if not survey_row.empty:
+                            pdf.set_font("Arial", 'B', 13)
+                            pdf.cell(200, 10, txt="Survey Information", ln=True)
+                            pdf.ln(3)
+
+                            row = survey_row.iloc[0]
+                            for col in row.index:
+                                val = str(row[col])
+                                if val and col != "id":
+                                    pdf.set_font("Arial", size=12)
+                                    pdf.multi_cell(0, 10, f"{col}: {val}")
+
+                    pdf_output = io.BytesIO()
+                    pdf.output(pdf_output)
+                    st.download_button(
+                        label="⬇️ Download PDF",
+                        data=pdf_output.getvalue(),
+                        file_name=f"{selected_name}_profile.pdf",
+                        mime="application/pdf"
+                    )
+
+            with export_col2:
+                if st.button("📊 Download Profile as CSV"):
+                    full_csv_df = info_df.copy()
+                    if not survey_df.empty:
+                        survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+                        if not survey_row.empty:
+                            survey_info = pd.DataFrame(survey_row.T).reset_index()
+                            survey_info.columns = ['Field', 'Value']
+                            full_csv_df = pd.concat([full_csv_df, survey_info], ignore_index=True)
+
+                    csv = full_csv_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="⬇️ Download CSV",
+                        data=csv,
+                        file_name=f"{selected_name}_profile.csv",
+                        mime="text/csv"
+                    )
+            # EXPORT BUTTONS END HERE
+
+
         else:
             st.info("No basic info found for this restaurant.")
     else:
