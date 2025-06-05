@@ -209,10 +209,8 @@ for sql_name, label in tables.items():
 # --- Current Stats / KPI ---
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
+
     total_restaurants = len(dataframes['Treated Restaurants'])
-    total_updates = len(dataframes['Officer Updates'])
-    total_tax = len(dataframes['PRA System'])
-    total_surveyed = len(dataframes['Survey 1 - P1']) + len(dataframes['Survey 2 - P1'])
 
     st.markdown("""
         <style>
@@ -226,23 +224,55 @@ if section == "Current Stats / KPI":
             box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
         }
         .kpi-blue { background-color: #2563eb; }
-        .kpi-green { background-color: #16a34a; }
-        .kpi-orange { background-color: #f59e0b; }
-        .kpi-gray { background-color: #6b7280; }
         </style>
     """, unsafe_allow_html=True)
 
-    kpi_cols = st.columns(4)
-    with kpi_cols[0]: st.markdown(f'<div class="metric-box kpi-blue">🍽 Treated Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
-    with kpi_cols[1]: st.markdown(f'<div class="metric-box kpi-green">✅ Compliance Records<br>{total_updates}</div>', unsafe_allow_html=True)
-    with kpi_cols[2]: st.markdown(f'<div class="metric-box kpi-orange">💰 Tax Records<br>{total_tax}</div>', unsafe_allow_html=True)
-    with kpi_cols[3]: st.markdown(f'<div class="metric-box kpi-gray">🗂 Surveyed Entries<br>{total_surveyed}</div>', unsafe_allow_html=True)
+    kpi_cols = st.columns(1)
+    with kpi_cols[0]: 
+        st.markdown(f'<div class="metric-box kpi-blue">🍽 Treated Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
 
     st.markdown("### 📝 PRA Compliance Form")
     st.markdown("[📋 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
-    #st.code("Run locally with: streamlit run Formv2.py")
-    #st.markdown("[📩 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
-    #st.code("Submit online: https://restes-dashboard-form.streamlit.app/")
+
+    # --- Intelligent Matching and Officer Summary ---
+    treated_df = dataframes["Treated Restaurants"]
+    tracking_df = dataframes.get("enforcement_tracking", pd.DataFrame())
+
+    if not treated_df.empty:
+        if "officer_id" in treated_df.columns:
+            officer_groups = treated_df.groupby("officer_id")
+
+            for officer_id, group in officer_groups:
+                st.markdown(f"### 🧑‍💼 Officer ID: {officer_id}")
+                st.markdown(f"- Total Restaurants Assigned: **{len(group)}**")
+                st.dataframe(group[["id", "restaurant_name", "restaurant_address"]])
+
+                if not tracking_df.empty and "restaurant_id" in tracking_df.columns:
+                    merged = pd.merge(group, tracking_df, how="left", left_on="id", right_on="restaurant_id")
+
+                    courier_counts = merged["courier_status"].value_counts(dropna=False).to_dict()
+                    notice_counts = merged["notice_status"].value_counts(dropna=False).to_dict()
+                    filing_counts = merged["filing_status"].value_counts(dropna=False).to_dict()
+
+                    st.markdown("**📦 Courier Status:**")
+                    for k, v in courier_counts.items():
+                        st.markdown(f"- {k or 'Unknown'}: **{v}**")
+
+                    st.markdown("**📩 Notice Status:**")
+                    for k, v in notice_counts.items():
+                        st.markdown(f"- {k or 'Unknown'}: **{v}**")
+
+                    st.markdown("**📈 Filing Status:**")
+                    for k, v in filing_counts.items():
+                        st.markdown(f"- {k or 'Unknown'}: **{v}**")
+
+                    st.markdown("---")
+                else:
+                    st.info("No enforcement tracking data available yet.")
+        else:
+            st.warning("`officer_id` column not found in Treated Restaurants.")
+    else:
+        st.warning("Treated Restaurants data not loaded.")
 
     
     
