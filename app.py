@@ -337,9 +337,9 @@ elif section == "Restaurant Profile":
     filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
     non_filers_df = df[df["ntn"].isna() | (df["ntn"].astype(str).str.strip() == "")]
 
-    ac_df = df[df["air_conditioner"] == "Yes"]
-    card_df = df[df["credit_debit_card_acceptance"] == "Yes"]
-    foodcourt_df = df[df["food_court"] == "Yes"]
+    ac_df = df[df["air_conditioner"] == "Yes"] if "air_conditioner" in df.columns else pd.DataFrame()
+    card_df = df[df["credit_debit_card_acceptance"] == "Yes"] if "credit_debit_card_acceptance" in df.columns else pd.DataFrame()
+    foodcourt_df = df[df["food_court"] == "Yes"] if "food_court" in df.columns else pd.DataFrame()
 
     col1, col2, col3 = st.columns(3)
     with col1:
