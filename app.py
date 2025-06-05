@@ -5,8 +5,7 @@ import time
 import os
 import io
 from fpdf import FPDF
-import io
-from fpdf import FPDF
+
 
 
 # --- Page Setup ---
