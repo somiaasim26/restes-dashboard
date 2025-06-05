@@ -328,7 +328,7 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
     # --- Monthly Summary KPIs ---
-    #st.markdown("### 📊 Monthly Reporting Summary")
+    st.markdown("### 📊 Monthly Reporting Summary")
     df = dataframes["Treated Restaurants"]
 
     registered_df = df[df["compliance_status"] == "Registered"]
