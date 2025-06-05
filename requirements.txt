@@ -4,5 +4,6 @@ psycopg2-binary
 pandas
 requests
 supabase
+fpdf==1.7.2
 
 

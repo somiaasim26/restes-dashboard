@@ -5,6 +5,8 @@ import time
 import os
 import io
 from fpdf import FPDF
+import io
+from fpdf import FPDF
 
 
 # --- Page Setup ---
@@ -238,6 +240,8 @@ if section == "Current Stats / KPI":
     with kpi_cols[3]: st.markdown(f'<div class="metric-box kpi-gray">🗂 Surveyed Entries<br>{total_surveyed}</div>', unsafe_allow_html=True)
 
     st.markdown("### 📝 PRA Compliance Form")
+    st.markdown("[📋 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
+    #st.code("Run locally with: streamlit run Formv2.py")
     #st.markdown("[📩 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
     #st.code("Submit online: https://restes-dashboard-form.streamlit.app/")
 
@@ -314,6 +318,7 @@ elif section == "Change Log":
 elif section == "Submit Form":
     st.header("📥 Submit a Compliance Update")
     st.markdown("Click below to open the officer form.")
+    st.link_button("Open Form in New Tab", "https://restes-dashboard-form.streamlit.app/")
     #st.link_button("Open Form in New Tab", "https://restes-dashboard-form.streamlit.app/")
 
     
@@ -453,6 +458,7 @@ elif section == "Restaurant Profile":
             st.info("No survey data found for this restaurant.")
     else:
         st.warning("Survey table is empty or not connected.")
+        
 
 
     if not survey_df.empty:
@@ -574,10 +580,13 @@ elif section == "Restaurant Profile":
 
 
 # -- Return Data
+# -- Return Data
 
 elif section == "Return Summary":
     st.title("📊 Return Summary Viewer")
 
+    treated_df = dataframes["Treated Restaurants"]
+    return_df = dataframes["Return Data"] 
     treated_df = dataframes["treated_restaurant_data"]
     return_df = dataframes["restaurant_return_data"]  
 
