@@ -207,78 +207,56 @@ for sql_name, label in tables.items():
 
 
 # --- Current Stats / KPI ---
-if section == "Current Stats / KPI":
-    st.title("📊 PRA System Status")
+st.title("📊 PRA System Status")
+#st.markdown("## 🧠 Intelligent Matching - Officer Summary")
 
-    total_restaurants = len(dataframes['Treated Restaurants'])
+# Load treated and enforcement data from your dictionary
+treated_df = dataframes["Treated Restaurants"]
+enforce_df = dataframes.get("Enforcement Tracking", pd.DataFrame())
 
-    st.markdown("""
-        <style>
-        .metric-box {
-            padding: 1.5rem;
-            border-radius: 10px;
-            color: white;
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
-        }
-        .kpi-blue { background-color: #2563eb; }
-        </style>
-    """, unsafe_allow_html=True)
+color_map = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#6b7280", "#7c3aed", "#0e7490", "#ca8a04", "#db2777"]
+officer_groups = treated_df.groupby("officer_id")
+officer_counter = 0
 
-    st.markdown(f'''
-        <div class="metric-box kpi-blue">🍽 Treated Restaurants<br>{total_restaurants}</div>
-    ''', unsafe_allow_html=True)
+for officer_id, group in officer_groups:
+    color = color_map[officer_counter % len(color_map)]
+    officer_counter += 1
 
-    st.markdown("### 📝 PRA Compliance Form")
-    st.markdown("[📋 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
+    with st.expander(f"👮 Officer ID: {officer_id} — Assigned: {len(group)}", expanded=False):
+        st.markdown(f"""
+            <div style='padding: 1rem; background-color: {color}; border-radius: 8px; color: white; margin-bottom: 1rem;'>
+                <b>Officer ID:</b> {officer_id} |
+                <b>Assigned Restaurants:</b> {len(group)}
+            </div>
+        """, unsafe_allow_html=True)
 
-    # ========== Officer-Level Breakdown ==========
-    treated_df = dataframes["Treated Restaurants"]
-    try:
-        enforce_df = pd.read_sql("SELECT * FROM enforcement_tracking", engine)
-    except:
-        enforce_df = pd.DataFrame(columns=["restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"])
+        st.dataframe(group[["id", "restaurant_name", "restaurant_address"]])
 
-    if not treated_df.empty and "officer_id" in treated_df.columns:
-        officer_groups = treated_df.groupby("officer_id")
+        if not enforce_df.empty and "restaurant_id" in enforce_df.columns:
+            merged = pd.merge(group, enforce_df, how="left", left_on="id", right_on="restaurant_id")
 
-        for officer_id, group in officer_groups:
-            st.markdown(f"### 👮 Officer ID: `{officer_id}`")
-            st.markdown(f"- **Assigned Restaurants:** {len(group)}")
-            st.dataframe(group[["id", "restaurant_name", "restaurant_address"]])
+            courier = merged["courier_status"].value_counts(dropna=False).to_dict()
+            notice = merged["notice_status"].value_counts(dropna=False).to_dict()
+            filing = merged["filing_status"].value_counts(dropna=False).to_dict()
 
-            if not enforce_df.empty and "restaurant_id" in enforce_df.columns:
-                merged = pd.merge(group, enforce_df, how="left", left_on="id", right_on="restaurant_id")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown("📦 **Courier Status**")
+                for k, v in courier.items():
+                    st.markdown(f"- {k or 'Unknown'}: **{v}**")
 
-                courier = merged["courier_status"].value_counts(dropna=False).to_dict()
-                notice = merged["notice_status"].value_counts(dropna=False).to_dict()
-                filing = merged["filing_status"].value_counts(dropna=False).to_dict()
+            with col2:
+                st.markdown("📩 **Notice Status**")
+                for k, v in notice.items():
+                    st.markdown(f"- {k or 'Unknown'}: **{v}**")
 
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.markdown("📦 **Courier Status**")
-                    for k, v in courier.items():
-                        st.markdown(f"- {k or 'Unknown'}: **{v}**")
+            with col3:
+                st.markdown("📈 **Filing Status**")
+                for k, v in filing.items():
+                    st.markdown(f"- {k or 'Unknown'}: **{v}**")
+        else:
+            st.info("No enforcement tracking records found.")
 
-                with col2:
-                    st.markdown("📩 **Notice Status**")
-                    for k, v in notice.items():
-                        st.markdown(f"- {k or 'Unknown'}: **{v}**")
-
-                with col3:
-                    st.markdown("📈 **Filing Status**")
-                    for k, v in filing.items():
-                        st.markdown(f"- {k or 'Unknown'}: **{v}**")
-
-                st.markdown("---")
-            else:
-                st.info("No enforcement tracking records found.")
-    else:
-        st.warning("No officer_id found in treated_restaurant_data.")
-
-    
  
 #----------------------------------------------------------------------------------------------------------------------------------
 
