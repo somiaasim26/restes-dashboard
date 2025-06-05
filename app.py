@@ -227,55 +227,59 @@ if section == "Current Stats / KPI":
         </style>
     """, unsafe_allow_html=True)
 
-    kpi_cols = st.columns(1)
-    with kpi_cols[0]: 
-        st.markdown(f'<div class="metric-box kpi-blue">🍽 Treated Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
+    st.markdown(f'''
+        <div class="metric-box kpi-blue">🍽 Treated Restaurants<br>{total_restaurants}</div>
+    ''', unsafe_allow_html=True)
 
     st.markdown("### 📝 PRA Compliance Form")
     st.markdown("[📋 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
 
-    # --- Intelligent Matching and Officer Summary ---
+    # ========== Officer-Level Breakdown ==========
     treated_df = dataframes["Treated Restaurants"]
-    tracking_df = dataframes.get("enforcement_tracking", pd.DataFrame())
+    try:
+        enforce_df = pd.read_sql("SELECT * FROM enforcement_tracking", engine)
+    except:
+        enforce_df = pd.DataFrame(columns=["restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"])
 
-    if not treated_df.empty:
-        if "officer_id" in treated_df.columns:
-            officer_groups = treated_df.groupby("officer_id")
+    if not treated_df.empty and "officer_id" in treated_df.columns:
+        officer_groups = treated_df.groupby("officer_id")
 
-            for officer_id, group in officer_groups:
-                st.markdown(f"### 🧑‍💼 Officer ID: {officer_id}")
-                st.markdown(f"- Total Restaurants Assigned: **{len(group)}**")
-                st.dataframe(group[["id", "restaurant_name", "restaurant_address"]])
+        for officer_id, group in officer_groups:
+            st.markdown(f"### 👮 Officer ID: `{officer_id}`")
+            st.markdown(f"- **Assigned Restaurants:** {len(group)}")
+            st.dataframe(group[["id", "restaurant_name", "restaurant_address"]])
 
-                if not tracking_df.empty and "restaurant_id" in tracking_df.columns:
-                    merged = pd.merge(group, tracking_df, how="left", left_on="id", right_on="restaurant_id")
+            if not enforce_df.empty and "restaurant_id" in enforce_df.columns:
+                merged = pd.merge(group, enforce_df, how="left", left_on="id", right_on="restaurant_id")
 
-                    courier_counts = merged["courier_status"].value_counts(dropna=False).to_dict()
-                    notice_counts = merged["notice_status"].value_counts(dropna=False).to_dict()
-                    filing_counts = merged["filing_status"].value_counts(dropna=False).to_dict()
+                courier = merged["courier_status"].value_counts(dropna=False).to_dict()
+                notice = merged["notice_status"].value_counts(dropna=False).to_dict()
+                filing = merged["filing_status"].value_counts(dropna=False).to_dict()
 
-                    st.markdown("**📦 Courier Status:**")
-                    for k, v in courier_counts.items():
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.markdown("📦 **Courier Status**")
+                    for k, v in courier.items():
                         st.markdown(f"- {k or 'Unknown'}: **{v}**")
 
-                    st.markdown("**📩 Notice Status:**")
-                    for k, v in notice_counts.items():
+                with col2:
+                    st.markdown("📩 **Notice Status**")
+                    for k, v in notice.items():
                         st.markdown(f"- {k or 'Unknown'}: **{v}**")
 
-                    st.markdown("**📈 Filing Status:**")
-                    for k, v in filing_counts.items():
+                with col3:
+                    st.markdown("📈 **Filing Status**")
+                    for k, v in filing.items():
                         st.markdown(f"- {k or 'Unknown'}: **{v}**")
 
-                    st.markdown("---")
-                else:
-                    st.info("No enforcement tracking data available yet.")
-        else:
-            st.warning("`officer_id` column not found in Treated Restaurants.")
+                st.markdown("---")
+            else:
+                st.info("No enforcement tracking records found.")
     else:
-        st.warning("Treated Restaurants data not loaded.")
+        st.warning("No officer_id found in treated_restaurant_data.")
 
     
-    
+ 
 #----------------------------------------------------------------------------------------------------------------------------------
 
 # --- Data Browser ---
