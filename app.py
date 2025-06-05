@@ -331,60 +331,69 @@ elif section == "Restaurant Profile":
     st.markdown("### 📊 Monthly Reporting Summary")
     df = dataframes["Treated Restaurants"]
 
-    registered_df = df[df["compliance_status"] == "Registered"]
-    unregistered_df = df[df["compliance_status"] != "Registered"]
 
-    filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
-    non_filers_df = df[df["ntn"].isna() | (df["ntn"].astype(str).str.strip() == "")]
+    registered_df = df[df.get("compliance_status") == "Registered"]
+    unregistered_df = df[df.get("compliance_status") != "Registered"]
 
-    if "air_conditioner" in df.columns:
-        ac_df = df[df["air_conditioner"] == "Yes"]
-    else:
-        ac_df = pd.DataFrame()
+    filers_df = df[df.get("ntn").notna() & (df.get("ntn").astype(str).str.strip() != "")]
+    non_filers_df = df[df.get("ntn").isna() | (df.get("ntn").astype(str).str.strip() == "")]
 
-    if "credit_debit_card_acceptance" in df.columns:
-        card_df = df[df["credit_debit_card_acceptance"] == "Yes"]
-    else:
-        card_df = pd.DataFrame()
+    ac_df = df[df.get("air_conditioner") == "Yes"] if "air_conditioner" in df.columns else pd.DataFrame()
+    card_df = df[df.get("credit_debit_card_acceptance") == "Yes"] if "credit_debit_card_acceptance" in df.columns else pd.DataFrame()
+    foodcourt_df = df[df.get("food_court") == "Yes"] if "food_court" in df.columns else pd.DataFrame()
 
-    if "food_court" in df.columns:
-        foodcourt_df = df[df["food_court"] == "Yes"]
-    else:
-        foodcourt_df = pd.DataFrame()
-
+    # Display in grid layout
     col1, col2, col3 = st.columns(3)
     with col1:
         with st.expander(f"✅ Registered ({len(registered_df)})"):
-            st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
+            if all(col in registered_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("Missing data.")
 
     with col2:
         with st.expander(f"❌ Unregistered ({len(unregistered_df)})"):
-            st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
+            if all(col in unregistered_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("Missing data.")
 
     with col3:
         with st.expander(f"🧾 Filers ({len(filers_df)})"):
-            st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
+            if all(col in filers_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("Missing data.")
 
     col4, col5, col6 = st.columns(3)
     with col4:
         with st.expander(f"📛 Non-Filers ({len(non_filers_df)})"):
-            st.dataframe(non_filers_df[["id", "restaurant_name", "restaurant_address"]])
+            if all(col in non_filers_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(non_filers_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("Missing data.")
 
     with col5:
         with st.expander(f"❄ AC Present ({len(ac_df)})"):
-            if not ac_df.empty and all(col in ac_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+            if all(col in ac_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
                 st.dataframe(ac_df[["id", "restaurant_name", "restaurant_address"]])
             else:
-                st.info("No AC data available.")
+                st.info("Missing data.")
 
     with col6:
         with st.expander(f"💳 Accept Card ({len(card_df)})"):
-            st.dataframe(card_df[["id", "restaurant_name", "restaurant_address"]])
+            if all(col in card_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(card_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("Missing data.")
 
     col7, _, _ = st.columns(3)
     with col7:
-        with st.expander(f"🏢 Located in Food Court ({len(foodcourt_df)})"):
-            st.dataframe(foodcourt_df[["id", "restaurant_name", "restaurant_address"]])
+        with st.expander(f"🏢 In Food Court ({len(foodcourt_df)})"):
+            if all(col in foodcourt_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(foodcourt_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("Missing data.")
 
 
     # --- Select Restaurant ---
