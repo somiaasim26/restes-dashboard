@@ -517,7 +517,7 @@ elif section == "Return Summary":
     st.title("📊 Return Summary Viewer")
 
     treated_df = dataframes["treated_restaurant_data"]
-    return_df = dataframes["restaurant_return_data"]  ✅
+    return_df = dataframes["restaurant_return_data"]  
 
 
     return_df.columns = return_df.columns.str.strip().str.upper().str.replace(" ", "_")
