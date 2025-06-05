@@ -356,28 +356,43 @@ elif section == "Restaurant Profile":
         with st.expander(f"🧾 Filers ({len(filers_df)})"):
             st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
 
+    # --- Survey flag summaries with restaurant info merge ---
+    def join_survey_flags(survey_flag_df, treated_df):
+        if survey_flag_df.empty:
+            return pd.DataFrame()
+        return pd.merge(
+            survey_flag_df[["id"]],
+            treated_df[["id", "restaurant_name", "restaurant_address"]],
+            on="id", how="left"
+        )
+
+    ac_df_final = join_survey_flags(ac_df, df)
+    card_df_final = join_survey_flags(card_df, df)
+    foodcourt_df_final = join_survey_flags(foodcourt_df, df)
+
     col4, col5, col6 = st.columns(3)
 
     with col4:
-        with st.expander(f"❄ AC Present ({len(ac_df)})"):
-            if all(c in ac_df.columns for c in ["id", "restaurant_name", "restaurant_address"]):
-                st.dataframe(ac_df[["id", "restaurant_name", "restaurant_address"]])
+        with st.expander(f"❄ AC Present ({len(ac_df_final)})"):
+            if not ac_df_final.empty:
+                st.dataframe(ac_df_final)
             else:
                 st.info("Missing data.")
 
     with col5:
-        with st.expander(f"💳 Accept Card ({len(card_df)})"):
-            if all(c in card_df.columns for c in ["id", "restaurant_name", "restaurant_address"]):
-                st.dataframe(card_df[["id", "restaurant_name", "restaurant_address"]])
+        with st.expander(f"💳 Accept Card ({len(card_df_final)})"):
+            if not card_df_final.empty:
+                st.dataframe(card_df_final)
             else:
                 st.info("Missing data.")
 
     with col6:
-        with st.expander(f"🏢 In Food Court ({len(foodcourt_df)})"):
-            if all(c in foodcourt_df.columns for c in ["id", "restaurant_name", "restaurant_address"]):
-                st.dataframe(foodcourt_df[["id", "restaurant_name", "restaurant_address"]])
+        with st.expander(f"🏢 In Food Court ({len(foodcourt_df_final)})"):
+            if not foodcourt_df_final.empty:
+                st.dataframe(foodcourt_df_final)
             else:
                 st.info("Missing data.")
+
 
 
     # --- Select Restaurant ---
