@@ -372,7 +372,10 @@ elif section == "Restaurant Profile":
 
     with col5:
         with st.expander(f"❄ AC Present ({len(ac_df)})"):
-            st.dataframe(ac_df[["id", "restaurant_name", "restaurant_address"]])
+            if not ac_df.empty and all(col in ac_df.columns for col in ["id", "restaurant_name", "restaurant_address"]):
+                st.dataframe(ac_df[["id", "restaurant_name", "restaurant_address"]])
+            else:
+                st.info("No AC data available.")
 
     with col6:
         with st.expander(f"💳 Accept Card ({len(card_df)})"):
