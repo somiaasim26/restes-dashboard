@@ -3,6 +3,8 @@ import pandas as pd
 from sqlalchemy import create_engine
 import time
 import os
+import io
+from fpdf import FPDF
 
 
 # --- Page Setup ---
@@ -451,10 +453,7 @@ elif section == "Restaurant Profile":
             st.info("No survey data found for this restaurant.")
     else:
         st.warning("Survey table is empty or not connected.")
-
-
-
-
+        
     if not survey_df.empty:
         survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
         if not survey_row.empty:
@@ -510,7 +509,71 @@ elif section == "Restaurant Profile":
         st.warning("Survey table is empty or not connected.")
 
 
-# -- Return Data
+# ========== EXPORT SECTION ==========
+export_col1, export_col2 = st.columns(2)
+
+with export_col1:
+    if st.button("📥 Download Profile as PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+
+        # Add restaurant basic info
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, f"Restaurant Summary: {selected_name}", ln=True)
+        pdf.ln(5)
+
+        pdf.set_font("Arial", size=12)
+        for i, row in info_df.iterrows():
+            pdf.multi_cell(0, 10, f"{row['Field']}: {row['Value']}")
+
+        pdf.ln(5)
+
+        # Survey Info if available
+        if not survey_df.empty:
+            survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+            if not survey_row.empty:
+                pdf.set_font("Arial", 'B', 13)
+                pdf.cell(200, 10, txt="Survey Information", ln=True)
+                pdf.ln(3)
+
+                row = survey_row.iloc[0]
+                for col in row.index:
+                    val = str(row[col])
+                    if val and col != "id":
+                        pdf.set_font("Arial", size=12)
+                        pdf.multi_cell(0, 10, f"{col}: {val}")
+
+        # Export
+        pdf_output = io.BytesIO()
+        pdf.output(pdf_output)
+        st.download_button(
+            label="⬇️ Download PDF",
+            data=pdf_output.getvalue(),
+            file_name=f"{selected_name}_profile.pdf",
+            mime="application/pdf"
+        )
+
+with export_col2:
+    if st.button("📊 Download Profile as CSV"):
+        full_csv_df = info_df.copy()
+        if not survey_df.empty:
+            survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+            if not survey_row.empty:
+                survey_info = pd.DataFrame(survey_row.T).reset_index()
+                survey_info.columns = ['Field', 'Value']
+                full_csv_df = pd.concat([full_csv_df, survey_info], ignore_index=True)
+
+        csv = full_csv_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="⬇️ Download CSV",
+            data=csv,
+            file_name=f"{selected_name}_profile.csv",
+            mime="text/csv"
+        )
+
+
+
 # -- Return Data
 elif section == "Return Summary":
     st.title("📊 Return Summary Viewer")
