@@ -205,57 +205,67 @@ for sql_name, label in tables.items():
 
 
 
-
 # --- Current Stats / KPI ---
-st.title("📊 PRA System Status")
-#st.markdown("## 🧠 Intelligent Matching - Officer Summary")
+if section == "Current Stats / KPI":
+    st.title("📊 PRA System Status")
 
-# Load treated and enforcement data from your dictionary
-treated_df = dataframes["Treated Restaurants"]
-enforce_df = dataframes.get("Enforcement Tracking", pd.DataFrame())
+    treated_df = dataframes['Treated Restaurants']
+    tracking_df = dataframes.get('enforcement_tracking', pd.DataFrame())
 
-color_map = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#6b7280", "#7c3aed", "#0e7490", "#ca8a04", "#db2777"]
-officer_groups = treated_df.groupby("officer_id")
-officer_counter = 0
+    st.markdown("""
+        <style>
+        .metric-box {
+            padding: 1.5rem;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+        }
+        .kpi-blue { background-color: #2563eb; }
+        </style>
+    """, unsafe_allow_html=True)
 
-for officer_id, group in officer_groups:
-    color = color_map[officer_counter % len(color_map)]
-    officer_counter += 1
+    total_restaurants = len(treated_df)
+    st.markdown(f'<div class="metric-box kpi-blue">🍽 Treated Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
 
-    with st.expander(f"👮 Officer ID: {officer_id} — Assigned: {len(group)}", expanded=False):
-        st.markdown(f"""
-            <div style='padding: 1rem; background-color: {color}; border-radius: 8px; color: white; margin-bottom: 1rem;'>
-                <b>Officer ID:</b> {officer_id} |
-                <b>Assigned Restaurants:</b> {len(group)}
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown("### 📝 PRA Compliance Form")
+    st.markdown("[📋 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
 
-        st.dataframe(group[["id", "restaurant_name", "restaurant_address"]])
+    # --- Intelligent Matching ---
+    st.markdown("### 👮 Officer-wise Assignment Summary")
+    officer_ids = sorted(treated_df['officer_id'].dropna().unique())
 
-        if not enforce_df.empty and "restaurant_id" in enforce_df.columns:
-            merged = pd.merge(group, enforce_df, how="left", left_on="id", right_on="restaurant_id")
+    for oid in officer_ids:
+        officer_df = treated_df[treated_df['officer_id'] == oid]
+        count = len(officer_df)
 
-            courier = merged["courier_status"].value_counts(dropna=False).to_dict()
-            notice = merged["notice_status"].value_counts(dropna=False).to_dict()
-            filing = merged["filing_status"].value_counts(dropna=False).to_dict()
+        with st.expander(f"🕵️ Officer ID: {int(oid)} — Assigned Restaurants: {count}"):
+            st.dataframe(officer_df[['id', 'restaurant_name', 'restaurant_address']])
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.markdown("📦 **Courier Status**")
-                for k, v in courier.items():
-                    st.markdown(f"- {k or 'Unknown'}: **{v}**")
+            if not tracking_df.empty and 'restaurant_id' in tracking_df.columns:
+                merged = officer_df.merge(tracking_df, left_on='id', right_on='restaurant_id', how='left')
 
-            with col2:
-                st.markdown("📩 **Notice Status**")
-                for k, v in notice.items():
-                    st.markdown(f"- {k or 'Unknown'}: **{v}**")
+                st.markdown("#### 📦 Courier Status Summary")
+                if 'courier_status' in merged.columns:
+                    st.dataframe(merged[['id', 'restaurant_name', 'courier_status']].dropna(subset=['courier_status']))
+                else:
+                    st.info("Courier status not available.")
 
-            with col3:
-                st.markdown("📈 **Filing Status**")
-                for k, v in filing.items():
-                    st.markdown(f"- {k or 'Unknown'}: **{v}**")
-        else:
-            st.info("No enforcement tracking records found.")
+                st.markdown("#### 📢 Notice Status Summary")
+                if 'notice_status' in merged.columns:
+                    st.dataframe(merged[['id', 'restaurant_name', 'notice_status']].dropna(subset=['notice_status']))
+                else:
+                    st.info("Notice status not available.")
+
+                st.markdown("#### 📄 Filing Status Summary")
+                if 'filing_status' in merged.columns:
+                    st.dataframe(merged[['id', 'restaurant_name', 'filing_status']].dropna(subset=['filing_status']))
+                else:
+                    st.info("Filing status not available.")
+            else:
+                st.info("⚠ No enforcement tracking records found.")
 
  
 #----------------------------------------------------------------------------------------------------------------------------------
