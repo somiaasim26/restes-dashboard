@@ -551,7 +551,7 @@ elif section == "Restaurant Profile":
 
             # Export
             pdf_output = io.BytesIO()
-            pdf.output(pdf_output)
+            pdf_output.write(pdf.output(dest='S').encode('latin1'))
             st.download_button(
                 label="⬇️ Download PDF",
                 data=pdf_output.getvalue(),
