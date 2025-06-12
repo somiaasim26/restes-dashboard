@@ -228,6 +228,9 @@ for sql_name, label in tables.items():
 
 
 # --- Current Stats / KPI (Special User Layout) ---
+email = st.session_state.get("email", "")
+is_special_user = email in special_access_users
+
 if section == "Current Stats / KPI":
     is_special_user = email in special_access_users
 
