@@ -330,10 +330,15 @@ if section == "Current Stats / KPI":
                     )
                 ]
 
+                total_resends = len(resend_df)
+
+                st.markdown(f"### 📨 Total Notices to Re-send: `{total_resends}`")
+
                 if not resend_df.empty:
                     st.dataframe(resend_df[[
                         "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
-                    ]])
+                    ]].reset_index(drop=True))
+                
                 else:
                     st.info("No returned notices for this officer.")
 
