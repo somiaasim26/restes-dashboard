@@ -321,7 +321,15 @@ if section == "Current Stats / KPI":
                 col2.metric("📛 Corrected Names", corrected_names)
 
                 st.markdown("### 🗺️ Restaurants to Re-send Notice")
-                resend_df = off_df[(off_df["delivery_status"].str.lower() == "returned")]
+                # Only keep restaurants with returned notice AND corrected info
+                resend_df = off_df[
+                    (off_df["delivery_status"].str.lower() == "returned") &
+                    (
+                        (off_df["correct_name"].fillna("").str.strip() != "") |
+                        (off_df["correct_address"].fillna("").str.strip() != "")
+                    )
+                ]
+
                 if not resend_df.empty:
                     st.dataframe(resend_df[[
                         "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
@@ -331,6 +339,41 @@ if section == "Current Stats / KPI":
 
     except Exception as e:
         st.error(f"❌ Error loading PI View: {e}")
+
+    # --- Filing Status Summary (Grouped Count with Drilldown) ---
+    st.markdown("## 🔄 Filing Status Change Summary")
+
+    try:
+        df = dataframes["Notice Followup Tracking"]
+        treated_df = dataframes["Treated Restaurants"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+
+        df["restaurant_id"] = df["restaurant_id"].astype(str)
+        treated_df["id"] = treated_df["id"].astype(str)
+
+        # Merge old and new status
+        combined = pd.merge(df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("None").str.strip()
+        combined["compliance_status"] = combined["compliance_status"].fillna("None").str.strip()
+
+        # Only changed rows
+        combined["changed"] = combined["latest_formality_status"].str.lower() != combined["compliance_status"].str.lower()
+        changed = combined[combined["changed"]]
+
+        st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
+
+        status_groups = changed.groupby("latest_formality_status")
+
+        for status, group_df in status_groups:
+            with st.expander(f"🧾 {status} — {len(group_df)}", expanded=False):
+                st.dataframe(group_df[[
+                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
+                ]].reset_index(drop=True))
+
+    except Exception as e:
+        st.error(f"❌ Could not load summary: {e}")
+
+
+
 
     # --- Filing Status Summary (Compact View) ---
     st.markdown("## 🔄 Filing Status Change Summary")
@@ -375,37 +418,7 @@ if section == "Current Stats / KPI":
     except Exception as e:
         st.error(f"❌ Could not load filing status summary: {e}")
 
-        # --- Filing Destination Summary by Status ---
-    st.markdown("## 📦 Latest Formality Status")
-
-    try:
-        df = dataframes["Notice Followup Tracking"]
-        treated_df = dataframes["Treated Restaurants"][["id", "restaurant_name", "restaurant_address"]]
-
-        df["restaurant_id"] = df["restaurant_id"].astype(str)
-        treated_df["id"] = treated_df["id"].astype(str)
-
-        merged = pd.merge(df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        merged["latest_formality_status"] = merged["latest_formality_status"].fillna("None").str.strip()
-
-        # Count status values
-        status_counts = merged["latest_formality_status"].value_counts().reset_index()
-        status_counts.columns = ["Status", "Count"]
-
-        # Create metric cards for each status
-        for i, row in status_counts.iterrows():
-            with st.expander(f"📦 {row['Status']} — {row['Count']}", expanded=False):
-                filtered = merged[merged["latest_formality_status"] == row["Status"]]
-                if not filtered.empty:
-                    st.dataframe(filtered[[
-                        "restaurant_id", "restaurant_name", "restaurant_address", "latest_formality_status"
-                    ]].reset_index(drop=True))
-                else:
-                    st.info("No restaurants found.")
-
-    except Exception as e:
-        st.error(f"❌ Could not load summary: {e}")
-
+    
 #----------------------------------------------------------------------------------------------------------------------------------
 
 # --- Data Browser ---
