@@ -292,7 +292,7 @@ if section == "Current Stats / KPI":
                 except Exception as e:
                     st.warning(f"⚠️ Error loading tracking data: {e}")
     #else:
-        #st.warning("You do not have permission to view this page.")
+       # st.warning("You do not have permission to view this page.")
 
     # --- PI View (Slim) ---
     st.markdown("## 📋 Notice Follow-up & Latest Updates")
@@ -363,17 +363,18 @@ if section == "Current Stats / KPI":
 
         status_groups = changed.groupby("latest_formality_status")
 
+        for status_key, group_df in status_groups:
             # Rename display labels
-        display_label = status
-        if status.lower() == "filer":
-            display_label = "🟢 Started Filing"
-        elif status.lower() == "none":
-            display_label = "⚪ No Change in Formality"
+            display_label = status_key
+            if status_key.lower() == "filer":
+                display_label = "🟢 Started Filing"
+            elif status_key.lower() == "none":
+                display_label = "⚪ No Change in Formality"
 
-        with st.expander(f"{display_label} — {len(group_df)}", expanded=False):
-            st.dataframe(group_df[[
-                "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
-            ]].reset_index(drop=True))
+            with st.expander(f"{display_label} — {len(group_df)}", expanded=False):
+                st.dataframe(group_df[[
+                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
+                ]].reset_index(drop=True))
 
 
     except Exception as e:
