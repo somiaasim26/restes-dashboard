@@ -335,6 +335,61 @@ if section == "Current Stats / KPI":
                 st.dataframe(resend_df[["restaurant_id", "delivery_status", "correct_address", "correct_name", "contact", "latest_formality_status"]])
             else:
                 st.info("No returned notices for this officer.")
+  
+  
+    # --- Filing Status Shift Tracker ---
+    st.markdown("## 🔄 Filing Status Change Tracker")
+
+    try:
+        formality_df = dataframes["Notice Followup Tracking"]
+        treated_df = dataframes["Treated Restaurants"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+
+        formality_df["restaurant_id"] = formality_df["restaurant_id"].astype(str)
+        treated_df["id"] = treated_df["id"].astype(str)
+
+        # Merge both
+        combined = pd.merge(formality_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+
+        # Create comparison flag
+        combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
+
+        changed = combined[combined["changed"]].copy()
+
+        def status_tag(old, new):
+            if not old and new:
+                return f"<span style='color:green'><b>⬆ Became {new}</b></span>"
+            elif old and not new:
+                return f"<span style='color:red'><b>⬇ Lost status ({old})</b></span>"
+            elif old.lower().strip() != new.lower().strip():
+                return f"<span style='color:orange'><b>{old} → {new}</b></span>"
+            return f"<span>{old}</span>"
+
+        st.markdown(f"### 🧾 Restaurants With Filing Status Changes: `{len(changed)}`")
+        for idx, row in changed.iterrows():
+            rest_id = row["restaurant_id"]
+            name = row["restaurant_name"] or "Unnamed"
+            address = row["restaurant_address"] or "No address"
+            old = row["compliance_status"] or "—"
+            new = row["latest_formality_status"] or "—"
+            tag = status_tag(old, new)
+
+            st.markdown(f"""
+            <div style='
+                border:1px solid #ddd;
+                padding:10px;
+                margin-bottom:10px;
+                border-radius:6px;
+                background-color:#f9f9f9;
+            '>
+            <b>🏪 {name}</b> <br>
+            📍 <i>{address}</i> <br>
+            🆔 ID: <code>{rest_id}</code> <br>
+            🧾 Status Change: {tag}
+            </div>
+            """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"Could not load status tracker: {e}")
 
 
 #----------------------------------------------------------------------------------------------------------------------------------
