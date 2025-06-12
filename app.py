@@ -375,6 +375,36 @@ if section == "Current Stats / KPI":
     except Exception as e:
         st.error(f"❌ Could not load filing status summary: {e}")
 
+        # --- Filing Destination Summary by Status ---
+    st.markdown("## 📦 Latest Formality Status")
+
+    try:
+        df = dataframes["Notice Followup Tracking"]
+        treated_df = dataframes["Treated Restaurants"][["id", "restaurant_name", "restaurant_address"]]
+
+        df["restaurant_id"] = df["restaurant_id"].astype(str)
+        treated_df["id"] = treated_df["id"].astype(str)
+
+        merged = pd.merge(df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+        merged["latest_formality_status"] = merged["latest_formality_status"].fillna("None").str.strip()
+
+        # Count status values
+        status_counts = merged["latest_formality_status"].value_counts().reset_index()
+        status_counts.columns = ["Status", "Count"]
+
+        # Create metric cards for each status
+        for i, row in status_counts.iterrows():
+            with st.expander(f"📦 {row['Status']} — {row['Count']}", expanded=False):
+                filtered = merged[merged["latest_formality_status"] == row["Status"]]
+                if not filtered.empty:
+                    st.dataframe(filtered[[
+                        "restaurant_id", "restaurant_name", "restaurant_address", "latest_formality_status"
+                    ]].reset_index(drop=True))
+                else:
+                    st.info("No restaurants found.")
+
+    except Exception as e:
+        st.error(f"❌ Could not load summary: {e}")
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
