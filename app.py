@@ -85,7 +85,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-
 # --- Auth Setup ---
 approved_users = {
     "somiaasim26@gmail.com": "123PRA**!",
@@ -93,19 +92,17 @@ approved_users = {
     "mcb2270@columbia.edu": "123PRA**!",
     "asad.sherafghan@gmail.com": "123PRA**!",
     "adnanqk@gmail.com": "123PRA**!",
-    "anders_jensen@hks.harvard.edu" : "123PRA**!",
+    "anders_jensen@hks.harvard.edu": "123PRA**!",
     "amnanoorfatimalse@gmail.com": "123PRA**!",
     "s.s.shezreenshah@gmail.com": "123PRA**!"
 }
 
 special_access_users = {
-    "salmanzafars@gmail.com": "123PRA**!" ,
+    "salmanzafars@gmail.com": "123PRA**!",
     "Haali1@live.com": "123PRA**!",
-    "Kamranpra@gmail.com" : "123PRA**!",
-    "Saudatiq90@gmail.com" : "123PRA**!"
+    "Kamranpra@gmail.com": "123PRA**!",
+    "Saudatiq90@gmail.com": "123PRA**!"
 }
-
-
 
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -114,20 +111,21 @@ if not st.session_state["authenticated"]:
     st.title("🔒 PRA Restaurant Enforcement Dashboard Login")
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
+
     if st.button("Login"):
         if email in approved_users and approved_users[email] == password:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
-
-            # NEW: Redirect logic
-            if email in special_access_users:
-                st.session_state["section"] = "Current Stats / KPI"
-            else:
-                st.session_state["section"] = "Welcome"
+            st.session_state["section"] = "Welcome"
             st.rerun()
-        
+        elif email in special_access_users and special_access_users[email] == password:
+            st.session_state["authenticated"] = True
+            st.session_state["email"] = email
+            st.session_state["section"] = "Current Stats / KPI"
+            st.rerun()
         else:
             st.error("Invalid credentials or unauthorized email.")
+
     st.stop()
 
 # --- Welcome Page ---
