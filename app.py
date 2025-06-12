@@ -216,7 +216,9 @@ tables = {
     "restaurant_return_data": "Return Data",  # ✅ ADD THIS
     "surveydata_treatmentgroup": "Survey Data",
     "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
-    "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3"
+    "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3",
+    "notice_followup_tracking": "Notice Followup Tracking"
+
 }
 
 dataframes = {}
@@ -291,6 +293,49 @@ if section == "Current Stats / KPI":
                     st.warning(f"⚠️ Error loading tracking data: {e}")
     else:
         st.warning("You do not have permission to view this page.")
+
+    # --- PI View: Notice & Status Matching ---
+
+    st.title("📋 Notice Follow-up & Latest Updates")
+
+    df = dataframes["Notice Followup Tracking"]
+    treated_df = dataframes["Treated Restaurants"]
+
+    # Ensure 'restaurant_id' matches treated
+    merged = pd.merge(df, treated_df[['id', 'officer_id']], left_on="restaurant_id", right_on="id", how="left")
+    merged.fillna("", inplace=True)
+
+    # Officer list
+    officer_ids = sorted(merged["officer_id"].dropna().unique())
+
+    for oid in officer_ids:
+        off_df = merged[merged["officer_id"] == oid]
+
+        total = len(off_df)
+        returned = (off_df["delivery_status"].str.lower() == "returned").sum()
+        corrected_names = (off_df["correct_name"] != "").sum()
+        corrected_address = (off_df["correct_address"] != "").sum()
+        filing_now = off_df["latest_formality_status"].str.lower().str.contains("filing").sum()
+        not_liable = off_df["latest_formality_status"].str.lower().str.contains("not liable").sum()
+        already_reg = off_df["latest_formality_status"].str.lower().str.contains("already").sum()
+
+        with st.expander(f"👮 Officer ID {oid} — Restaurants: {total} — Notices Returned: {returned}", expanded=False):
+            col1, col2, col3 = st.columns(3)
+            col1.metric("✅ Filing Now", filing_now)
+            col2.metric("⚠ Already Registered", already_reg)
+            col3.metric("🚫 Not Liable", not_liable)
+
+            col4, col5 = st.columns(2)
+            col4.metric("📬 Notices Returned", returned)
+            col5.metric("📛 Corrected Names", corrected_names)
+
+            st.markdown("### 🗺️ Restaurants to Re-send Notice")
+            resend_df = off_df[(off_df["delivery_status"].str.lower() == "returned")]
+            if not resend_df.empty:
+                st.dataframe(resend_df[["restaurant_id", "delivery_status", "correct_address", "correct_name", "contact", "latest_formality_status"]])
+            else:
+                st.info("No returned notices for this officer.")
+
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
