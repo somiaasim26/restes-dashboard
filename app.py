@@ -294,51 +294,46 @@ if section == "Current Stats / KPI":
     else:
         st.warning("You do not have permission to view this page.")
 
-    # --- PI View: Notice & Status Matching ---
+    # --- PI View (Slim) ---
+    st.markdown("## 📋 Notice Follow-up & Latest Updates")
 
-    st.title("📋 Notice Follow-up & Latest Updates")
+    try:
+        df = dataframes["Notice Followup Tracking"]
+        treated_df = dataframes["Treated Restaurants"]
 
-    df = dataframes["Notice Followup Tracking"]
-    treated_df = dataframes["Treated Restaurants"]
+        df["restaurant_id"] = df["restaurant_id"].astype(str)
+        treated_df["id"] = treated_df["id"].astype(str)
+        merged = pd.merge(df, treated_df[['id', 'officer_id']], left_on="restaurant_id", right_on="id", how="left")
+        merged.fillna("", inplace=True)
 
-    # Ensure 'restaurant_id' matches treated
-    merged = pd.merge(df, treated_df[['id', 'officer_id']], left_on="restaurant_id", right_on="id", how="left")
-    merged.fillna("", inplace=True)
+        officer_ids = sorted(merged["officer_id"].dropna().unique())
 
-    # Officer list
-    officer_ids = sorted(merged["officer_id"].dropna().unique())
+        for oid in officer_ids:
+            off_df = merged[merged["officer_id"] == oid]
+            total = len(off_df)
+            returned = (off_df["delivery_status"].str.lower() == "returned").sum()
+            corrected_names = (off_df["correct_name"].str.strip() != "").sum()
+            corrected_address = (off_df["correct_address"].str.strip() != "").sum()
 
-    for oid in officer_ids:
-        off_df = merged[merged["officer_id"] == oid]
+            with st.expander(f"🕵️ Officer ID {oid} — Restaurants: {total} — Notices Returned: {returned}", expanded=False):
+                col1, col2 = st.columns(2)
+                col1.metric("📬 Notices Returned", returned)
+                col2.metric("📛 Corrected Names", corrected_names)
 
-        total = len(off_df)
-        returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-        corrected_names = (off_df["correct_name"] != "").sum()
-        corrected_address = (off_df["correct_address"] != "").sum()
-        filing_now = off_df["latest_formality_status"].str.lower().str.contains("filing").sum()
-        not_liable = off_df["latest_formality_status"].str.lower().str.contains("not liable").sum()
-        already_reg = off_df["latest_formality_status"].str.lower().str.contains("already").sum()
+                st.markdown("### 🗺️ Restaurants to Re-send Notice")
+                resend_df = off_df[(off_df["delivery_status"].str.lower() == "returned")]
+                if not resend_df.empty:
+                    st.dataframe(resend_df[[
+                        "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
+                    ]])
+                else:
+                    st.info("No returned notices for this officer.")
 
-        with st.expander(f"👮 Officer ID {oid} — Restaurants: {total} — Notices Returned: {returned}", expanded=False):
-            col1, col2, col3 = st.columns(3)
-            col1.metric("✅ Filing Now", filing_now)
-            col2.metric("⚠ Already Registered", already_reg)
-            col3.metric("🚫 Not Liable", not_liable)
+    except Exception as e:
+        st.error(f"❌ Error loading PI View: {e}")
 
-            col4, col5 = st.columns(2)
-            col4.metric("📬 Notices Returned", returned)
-            col5.metric("📛 Corrected Names", corrected_names)
-
-            st.markdown("### 🗺️ Restaurants to Re-send Notice")
-            resend_df = off_df[(off_df["delivery_status"].str.lower() == "returned")]
-            if not resend_df.empty:
-                st.dataframe(resend_df[["restaurant_id", "delivery_status", "correct_address", "correct_name", "contact", "latest_formality_status"]])
-            else:
-                st.info("No returned notices for this officer.")
-  
-  
-    # --- Filing Status Shift Tracker ---
-    st.markdown("## 🔄 Filing Status Change Tracker")
+    # --- Filing Status Summary (Compact View) ---
+    st.markdown("## 🔄 Filing Status Change Summary")
 
     try:
         formality_df = dataframes["Notice Followup Tracking"]
@@ -347,49 +342,38 @@ if section == "Current Stats / KPI":
         formality_df["restaurant_id"] = formality_df["restaurant_id"].astype(str)
         treated_df["id"] = treated_df["id"].astype(str)
 
-        # Merge both
         combined = pd.merge(formality_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-
-        # Create comparison flag
         combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
-
         changed = combined[combined["changed"]].copy()
 
-        def status_tag(old, new):
-            if not old and new:
-                return f"<span style='color:green'><b>⬆ Became {new}</b></span>"
-            elif old and not new:
-                return f"<span style='color:red'><b>⬇ Lost status ({old})</b></span>"
-            elif old.lower().strip() != new.lower().strip():
-                return f"<span style='color:orange'><b>{old} → {new}</b></span>"
-            return f"<span>{old}</span>"
+        total_changed = len(changed)
+        st.markdown(f"### 🧾 Total Restaurants With Status Changes: <span style='background:#dcfce7;padding:5px 10px;border-radius:5px;font-weight:bold;'>{total_changed}</span>", unsafe_allow_html=True)
 
-        st.markdown(f"### 🧾 Restaurants With Filing Status Changes: `{len(changed)}`")
-        for idx, row in changed.iterrows():
-            rest_id = row["restaurant_id"]
-            name = row["restaurant_name"] or "Unnamed"
-            address = row["restaurant_address"] or "No address"
-            old = row["compliance_status"] or "—"
-            new = row["latest_formality_status"] or "—"
-            tag = status_tag(old, new)
+        # Optional dropdown to filter or explore
+        restaurant_labels = changed.apply(lambda row: f"{row['restaurant_name']} ({row['id']})", axis=1).tolist()
+        selected_label = st.selectbox("🔍 Select a Restaurant", restaurant_labels)
 
-            st.markdown(f"""
-            <div style='
-                border:1px solid #ddd;
-                padding:10px;
-                margin-bottom:10px;
-                border-radius:6px;
-                background-color:#f9f9f9;
-            '>
-            <b>🏪 {name}</b> <br>
-            📍 <i>{address}</i> <br>
-            🆔 ID: <code>{rest_id}</code> <br>
-            🧾 Status Change: {tag}
-            </div>
-            """, unsafe_allow_html=True)
+        selected_id = selected_label.split("(")[-1].replace(")", "").strip()
+        row = changed[changed["id"] == selected_id].iloc[0]
+
+        st.markdown(f"""
+        <div style='
+            border:1px solid #ddd;
+            padding:10px;
+            margin-top:10px;
+            border-radius:6px;
+            background-color:#f9f9f9;
+        '>
+            <b>🏪 {row['restaurant_name']}</b> <br>
+            📍 <i>{row['restaurant_address']}</i> <br>
+            🆔 ID: <code>{row['id']}</code> <br><br>
+            <b>Previous Status:</b> <span style='color:#d97706;'>{row['compliance_status']}</span><br>
+            <b>Latest Status:</b> <span style='color:#16a34a;'>{row['latest_formality_status']}</span>
+        </div>
+        """, unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"Could not load status tracker: {e}")
+        st.error(f"❌ Could not load filing status summary: {e}")
 
 
 #----------------------------------------------------------------------------------------------------------------------------------
