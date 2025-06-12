@@ -341,7 +341,7 @@ if section == "Current Stats / KPI":
         st.error(f"❌ Error loading PI View: {e}")
 
     # --- Filing Status Summary (Grouped Count with Drilldown) ---
-    st.markdown("## 🔄 Filing Status Change Summary")
+    st.markdown("## 🔄 Latest Formality Status")
 
     try:
         df = dataframes["Notice Followup Tracking"]
