@@ -98,6 +98,15 @@ approved_users = {
     "s.s.shezreenshah@gmail.com": "123PRA**!"
 }
 
+special_access_users = [
+    "salmanzafars@gmail.com": "123PRA**" ,
+    "Haali1@live.com ": "123PRA**",
+    "Kamranpra@gmail.com" : "123PRA**",
+    "Saudatiq90@gmail.com" : "123PRA**"
+    ]
+
+
+
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -109,8 +118,14 @@ if not st.session_state["authenticated"]:
         if email in approved_users and approved_users[email] == password:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
-            st.session_state["section"] = "Welcome"
+
+            # NEW: Redirect logic
+            if email in special_access_users:
+                st.session_state["section"] = "Current Stats / KPI"
+            else:
+                st.session_state["section"] = "Welcome"
             st.rerun()
+        
         else:
             st.error("Invalid credentials or unauthorized email.")
     st.stop()
@@ -179,10 +194,19 @@ def get_supabase_image_url(filename):
 
 # --- Sidebar Navigation ---
 st.sidebar.title("📁 PRA-System")
-section = st.sidebar.radio("Navigation", [
-    "Current Stats / KPI", "Data Browser", "Survey Search", 
-    "Change Log", "Submit Form", "Restaurant Profile", "Return Summary"  # ✅ Add Return Summary
-])
+user_email = st.session_state.get("email")
+
+# Check if this user has restricted access
+if user_email in special_access_users:
+    allowed_sections = ["Current Stats / KPI", "Restaurant Profile"]
+else:
+    allowed_sections = [
+        "Current Stats / KPI", "Data Browser", "Survey Search", 
+        "Change Log", "Submit Form", "Restaurant Profile", "Return Summary"
+    ]
+
+section = st.sidebar.radio("Navigation", allowed_sections)
+
 
 
 tables = {
