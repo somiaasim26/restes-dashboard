@@ -227,73 +227,54 @@ for sql_name, label in tables.items():
 
 
 
-# --- Current Stats / KPI ---
+# --- Current Stats / KPI (Special User Layout) ---
 if section == "Current Stats / KPI":
+    is_special_user = email in special_access_users
+
     st.title("📊 PRA System Status")
 
-    treated_df = dataframes["Treated Restaurants"]
-    tracking_df = dataframes.get("Enforcement Tracking", pd.DataFrame())
+    total_restaurants = len(dataframes["Treated Restaurants"])
 
-    # Treated Restaurants Block
-    total_restaurants = len(treated_df)
-    st.markdown(f"""
-    <div style='background-color:#2563eb;padding:1.5rem;border-radius:10px;margin-bottom:1rem;color:white;font-weight:bold;font-size:1.2rem'>
-    🍽 Treated Restaurants<br><span style='font-size:2rem'>{total_restaurants}</span>
-    </div>
+    st.markdown("""
+        <style>
+            .metric-box {
+                padding: 1rem 1.5rem;
+                border-radius: 10px;
+                color: white;
+                font-size: 1.3rem;
+                font-weight: 600;
+                margin-bottom: 1.5rem;
+                box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+                width: 100%;
+            }
+            .kpi-blue { background-color: #2563eb; }
+        </style>
     """, unsafe_allow_html=True)
 
-    # Officer Form
-    st.markdown("### 📝 PRA Compliance Form")
-    st.markdown("[📋 Launch Officer Form](https://restes-dashboard-form.streamlit.app/)")
+    # Shorter Single Column Metric Box
+    st.markdown(f'<div class="metric-box kpi-blue">🏢 Total Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
 
-    # Officer Wise Display
-    officer_ids = sorted(treated_df["officer_id"].dropna().astype(str).unique())
+    # --- Special User Officer Block ---
+    if is_special_user:
+        df = dataframes["Treated Restaurants"]
+        tracking_df = dataframes.get("Enforcement Tracking", pd.DataFrame())
 
-    for oid in officer_ids:
-        officer_restaurants = treated_df[treated_df["officer_id"].astype(str) == oid]
-        count = len(officer_restaurants)
+        officer_ids = sorted(df["officer_id"].dropna().unique())
 
-        with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {count}", expanded=False):
-            st.markdown(f"**Assigned Restaurants: {count}**")
-            st.dataframe(officer_restaurants[["id", "restaurant_name", "restaurant_address"]])
+        for oid in officer_ids:
+            assigned_df = df[df["officer_id"] == oid][["id", "restaurant_name", "restaurant_address"]]
+            with st.expander(f"🕵️ Officer ID: {oid} — Assigned Restaurants: {len(assigned_df)}"):
+                st.dataframe(assigned_df)
 
-        with st.expander(f"📋 Enforcement Tracking — Officer {oid}", expanded=False):
-            if tracking_df.empty:
-                st.info("⚠ Enforcement tracking data not available.")
-                continue
+            tracking_data = tracking_df.merge(df[["id", "officer_id"]], left_on="restaurant_id", right_on="id", how="inner")
+            tracking_data = tracking_data[tracking_data["officer_id"] == oid]
 
-            tracking_data = pd.merge(
-                officer_restaurants,
-                tracking_df,
-                left_on="id",
-                right_on="restaurant_id",
-                how="left"
-            )
-
-            if tracking_data[["courier_status", "notice_status", "filing_status"]].isna().all(axis=1).all():
-                st.info("No tracking updates submitted yet.")
-                continue
-
-            st.markdown("#### 📨 Courier Status")
-            cdf = tracking_data.dropna(subset=["courier_status"])
-            if not cdf.empty:
-                st.dataframe(cdf[["restaurant_id", "restaurant_name", "courier_status"]])
+            if not tracking_data.empty:
+                with st.expander(f"📋 Enforcement Tracking — Officer {oid}"):
+                    st.dataframe(tracking_data[["restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"]])
             else:
-                st.warning("No courier updates.")
-
-            st.markdown("#### 📢 Notice Status")
-            ndf = tracking_data.dropna(subset=["notice_status"])
-            if not ndf.empty:
-                st.dataframe(ndf[["restaurant_id", "restaurant_name", "notice_status"]])
-            else:
-                st.warning("No notice updates.")
-
-            st.markdown("#### 📄 Filing Status")
-            fdf = tracking_data.dropna(subset=["filing_status"])
-            if not fdf.empty:
-                st.dataframe(fdf[["restaurant_id", "restaurant_name", "filing_status"]])
-            else:
-                st.warning("No filing updates.")
+                with st.expander(f"📋 Enforcement Tracking — Officer {oid}"):
+                    st.info("No enforcement tracking records found.")
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
