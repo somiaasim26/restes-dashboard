@@ -372,9 +372,6 @@ if section == "Current Stats / KPI":
     except Exception as e:
         st.error(f"❌ Could not load summary: {e}")
 
-
-
-
     # --- Filing Status Summary (Compact View) ---
     st.markdown("## 🔄 Filing Status Change Summary")
 
