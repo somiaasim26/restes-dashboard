@@ -98,12 +98,12 @@ approved_users = {
     "s.s.shezreenshah@gmail.com": "123PRA**!"
 }
 
-special_access_users = [
+special_access_users = {
     "salmanzafars@gmail.com": "123PRA**" ,
     "Haali1@live.com ": "123PRA**",
     "Kamranpra@gmail.com" : "123PRA**",
     "Saudatiq90@gmail.com" : "123PRA**"
-    ]
+}
 
 
 
