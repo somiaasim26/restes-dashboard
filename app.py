@@ -5,6 +5,8 @@ import time
 import os
 import io
 from fpdf import FPDF
+from sqlalchemy.sql import text
+from datetime import datetime
 
 
 
@@ -623,6 +625,44 @@ elif section == "Restaurant Profile":
             st.info("No survey data found for this restaurant.")
     else:
         st.warning("Survey table is empty or not connected.")
+    
+
+    # --- Officer Comment Section ---
+    st.markdown("### 📝 Officer Comment (Why Notice Not Sent)")
+
+    # Show previous comments for this restaurant
+    existing_comments = pd.read_sql(f"""
+        SELECT officer_email, comment, timestamp 
+        FROM officer_comments 
+        WHERE restaurant_id = '{selected_id}' 
+        ORDER BY timestamp DESC
+    """, engine)
+
+    if not existing_comments.empty:
+        st.markdown("#### 🗂 Previous Comments")
+        st.dataframe(existing_comments)
+
+    # Comment submission form
+    with st.form(key="comment_form"):
+        officer_comment = st.text_area("Enter your comment here:")
+        submit_comment = st.form_submit_button("💬 Submit Comment")
+
+        if submit_comment and officer_comment.strip():
+            query = text("""
+                INSERT INTO officer_comments (restaurant_id, officer_email, comment, timestamp)
+                VALUES (:restaurant_id, :officer_email, :comment, :timestamp)
+            """)
+            values = {
+                "restaurant_id": selected_id,
+                "officer_email": st.session_state["email"],
+                "comment": officer_comment.strip(),
+                "timestamp": datetime.utcnow()
+            }
+            with engine.begin() as conn:
+                conn.execute(query, values)
+            st.success("✅ Comment submitted.")
+            st.experimental_rerun()
+
 
     # ========== EXPORT SECTION ==========
     export_col1, export_col2 = st.columns(2)
@@ -688,7 +728,6 @@ elif section == "Restaurant Profile":
             )
 
 
-# -- Return Data
 # -- Return Data
 
 elif section == "Return Summary":
