@@ -202,7 +202,7 @@ if user_email in special_access_users:
 else:
     allowed_sections = [
         "Current Stats / KPI", "Data Browser", "Survey Search", 
-        "Change Log", "Submit Form", "Restaurant Profile", "Return Summary", "Notice Follow-up Summary"
+        "Change Log", "Submit Form", "Restaurant Profile", "Return Summary"
     ]
 
 section = st.sidebar.radio("Navigation", allowed_sections)
@@ -291,24 +291,6 @@ if section == "Current Stats / KPI":
                     st.warning(f"⚠️ Error loading tracking data: {e}")
     else:
         st.warning("You do not have permission to view this page.")
-
-    try:
-        status_df = pd.read_sql("SELECT restaurant_id, latest_formality_status FROM notice_followup_tracking", engine)
-        treated_df = dataframes["Treated Restaurants"][["id", "compliance_status", "restaurant_name", "restaurant_address"]]
-        treated_df["id"] = treated_df["id"].astype(str)
-
-        # Merge to compare previous and latest
-        compare_df = status_df.merge(treated_df, left_on="restaurant_id", right_on="id", how="left")
-        compare_df["changed"] = compare_df["latest_formality_status"].fillna("") != compare_df["compliance_status"].fillna("")
-
-        changed_rows = compare_df[compare_df["changed"]]
-
-        with st.expander(f"🔄 Form Status Updates ({len(changed_rows)} changed)"):
-            st.dataframe(changed_rows[["restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"]])
-
-    except Exception as e:
-        st.warning(f"Could not load formality comparison: {e}")
-
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -831,51 +813,6 @@ elif section == "Return Summary":
             else:
                 st.warning("No return record found for this NTN in the selected month.")
 
-#------ Notice Follow-up Summary
-
-elif section == "Notice Follow-up Summary":
-    st.title("📨 Notice Follow-up Summary")
-
-    try:
-        # Load data from Supabase
-        notice_df = pd.read_sql("SELECT * FROM notice_followup_tracking", engine)
-        treated_df = pd.read_sql("SELECT id, officer_id, restaurant_name, restaurant_address FROM treated_restaurant_data", engine)
-        
-        # Clean up
-        notice_df["restaurant_id"] = notice_df["restaurant_id"].astype(str)
-        treated_df["id"] = treated_df["id"].astype(str)
-
-        # Join data
-        merged_df = notice_df.merge(treated_df, left_on="restaurant_id", right_on="id", how="left")
-
-        # Flags
-        merged_df["has_correct_address"] = merged_df["correct_address"].notna() & (merged_df["correct_address"].str.strip() != "")
-        merged_df["has_correct_name"] = merged_df["correct_name"].notna() & (merged_df["correct_name"].str.strip() != "")
-        merged_df["is_returned"] = merged_df["delivery_status"].str.strip() == "Returned"
-
-        officer_ids = sorted(merged_df["officer_id"].dropna().unique())
-
-        for oid in officer_ids:
-            officer_df = merged_df[merged_df["officer_id"] == oid]
-            total = len(officer_df)
-            returned = officer_df["is_returned"].sum()
-            corrected_addrs = officer_df["has_correct_address"].sum()
-            corrected_names = officer_df["has_correct_name"].sum()
-
-            with st.expander(f"🕵️ Officer ID {oid} — {total} Restaurants"):
-                st.markdown(f"""
-                **Summary:**
-                - 🧾 Total Notices: `{total}`
-                - 📦 Notices Returned: `{returned}`
-                - 🏠 Corrected Addresses: `{corrected_addrs}`
-                - 🧾 Corrected Names: `{corrected_names}`
-                """)
-
-                display_cols = ["restaurant_id", "restaurant_name", "restaurant_address", "delivery_status", "correct_address", "correct_name"]
-                st.dataframe(officer_df[display_cols].reset_index(drop=True))
-
-    except Exception as e:
-        st.error(f"❌ Could not load or process data: {e}")
 
 
 
