@@ -100,7 +100,7 @@ else:
         "Submit Form",
         "Restaurant Profile"
     ]
-
+##############
 section = st.sidebar.radio("Navigation", allowed_sections)
 
 # -------------------- Load Tables from Supabase --------------------
