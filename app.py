@@ -45,7 +45,7 @@ if not st.session_state["authenticated"]:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
             st.session_state["section"] = "Current Stats / KPI"
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Invalid credentials.")
     st.stop()
