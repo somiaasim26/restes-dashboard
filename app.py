@@ -104,6 +104,7 @@ elif section == "Data Browser":
     table_key = [k for k, v in tables.items() if v == table][0]
     st.dataframe(dfs[table_key])
 
+#
 # --- RESTAURANT PROFILE ---
 elif section == "Restaurant Profile":
     st.title("🏪 Restaurant Profile")
