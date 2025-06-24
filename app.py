@@ -40,7 +40,7 @@ if not st.session_state["authenticated"]:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
             st.session_state["section"] = "Welcome"
-            st.experimental_rerun()
+            st.rerun()
         elif email in special_access_users and special_access_users[email] == password:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
@@ -83,7 +83,7 @@ if st.session_state["section"] == "Welcome":
     st.title("👋 Welcome to PRA Dashboard")
     if st.button("Enter Dashboard"):
         st.session_state["section"] = "Current Stats / KPI"
-        st.experimental_rerun()
+        st.rerun()
     st.stop()
 
 # --- CURRENT STATS ---
