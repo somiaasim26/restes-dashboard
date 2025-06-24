@@ -154,9 +154,9 @@ if st.session_state.get("section") == "Welcome":
             st.balloons()
             progress_bar = st.progress(0)
             for i in range(1, 101):
-                time.sleep(0.01)
+                
                 progress_bar.progress(i)
-            time.sleep(0.5)
+         
         st.session_state["section"] = "Current Stats / KPI"
         st.rerun()
     st.stop()
