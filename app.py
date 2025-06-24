@@ -42,8 +42,10 @@ if not st.session_state["authenticated"]:
         if APPROVED_USERS.get(email) == password:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
+            st.session_state["section"] = "KPIs"
             st.success("Login successful!")
-            st.experimental_rerun()
+            st.rerun()  # ✅ USE THIS NOW
+
         else:
             st.error("Invalid credentials.")
     st.stop()
