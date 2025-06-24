@@ -152,3 +152,4 @@ elif section == "Restaurant Profile":
         buf.seek(0)
         st.download_button("Download PDF", buf, f"{row['restaurant_name']}.pdf")
 
+################
