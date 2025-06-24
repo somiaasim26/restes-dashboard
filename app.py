@@ -3,66 +3,42 @@ import pandas as pd
 from supabase import create_client
 from datetime import datetime
 
-# ✅ Page Setup + Styling
+# --- CONFIG ---
 st.set_page_config(page_title="PRA Dashboard", layout="wide")
 
+# --- STYLING ---
 st.markdown("""
-<style>
-body { background-color: #fcfbf5; }
-.block-container { padding: 2rem 3rem; }
-.st-emotion-cache-6qob1r, .css-1v0mbdj {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    padding: 15px;
-}
-.st-emotion-cache-1d391kg {
-    color: #ffffff !important;
-}
-h1, h2, h3, h4 { color: #1f2937; font-family: 'Segoe UI', sans-serif; }
-.metric-box {
-    padding: 1.5rem;
-    border-radius: 10px;
-    color: white;
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
-    transition: all 0.2s ease-in-out;
-}
-.metric-box:hover {
-    transform: translateY(-3px);
-    box-shadow: 0px 6px 14px rgba(0,0,0,0.3);
-}
-.kpi-blue { background-color: #2563eb; }
-.kpi-green { background-color: #16a34a; }
-.kpi-orange { background-color: #f59e0b; }
-.kpi-gray { background-color: #6b7280; }
-.form-box {
-    background: #f3f4f6;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    border-left: 6px solid #2563eb;
-    margin-top: 2rem;
-}
-/* Sidebar radio label text color */
-section[data-testid="stSidebar"] div[role="radiogroup"] label {
-    color: white !important;
-    font-weight: 600;
-}
-/* Selected option styling */
-section[data-testid="stSidebar"] div[role="radiogroup"] input:checked + div {
-    color: white !important;
-    font-weight: 700;
-}
-</style>
+    <style>
+        body { background-color: #fcfbf5; }
+        .block-container { padding: 2rem 3rem; }
+        .st-emotion-cache-6qob1r, .css-1v0mbdj {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            padding: 15px;
+        }
+        .st-emotion-cache-1d391kg {
+            color: #ffffff !important;
+        }
+        h1, h2, h3, h4 { color: #1f2937; font-family: 'Segoe UI', sans-serif; }
+    </style>
 """, unsafe_allow_html=True)
 
-# ✅ Auth Setup
+# --- AUTH ---
 approved_users = {
-    "somiaasim26@gmail.com": "123PRA**!"
+    "somiaasim26@gmail.com": "123PRA**!",
+    "hamzaafsar94@gmail.com": "123PRA**!",
+    "mcb2270@columbia.edu": "123PRA**!",
+    "asad.sherafghan@gmail.com": "123PRA**!",
+    "adnanqk@gmail.com": "123PRA**!",
+    "anders_jensen@hks.harvard.edu": "123PRA**!",
+    "amnanoorfatimalse@gmail.com": "123PRA**!",
+    "s.s.shezreenshah@gmail.com": "123PRA**!"
 }
 special_access_users = {
-    "salmanzafars@gmail.com": "123PRA**!"
+    "salmanzafars@gmail.com": "123PRA**!",
+    "Haali1@live.com": "123PRA**!",
+    "Kamranpra@gmail.com": "123PRA**!",
+    "Saudatiq90@gmail.com": "123PRA**!"
 }
 
 if "authenticated" not in st.session_state:
@@ -87,16 +63,17 @@ if not st.session_state["authenticated"]:
             st.error("Invalid credentials.")
     st.stop()
 
-# ✅ Connect to Supabase
+# --- SUPABASE CLIENT ---
 url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
 
+# --- CACHED TABLE LOADER ---
 @st.cache_data
 def load_table(name):
     return pd.DataFrame(supabase.table(name).select("*").execute().data)
 
-# ✅ Load only needed tables
+# --- LOAD DATA ---
 tables = {
     "treated_restaurant_data": "Treated Restaurants",
     "officer_compliance_updates": "Officer Updates",
@@ -108,7 +85,15 @@ tables = {
 
 dfs = {k: load_table(k) for k in tables}
 
-# ✅ Navigation
+# --- WELCOME ---
+if st.session_state.get("section") == "Welcome":
+    st.title("👋 Welcome to PRA Dashboard")
+    if st.button("Enter Dashboard"):
+        st.session_state["section"] = "Current Stats / KPI"
+        st.rerun()
+    st.stop()
+
+# --- SIDEBAR ---
 user_email = st.session_state["email"]
 allowed = ["Current Stats / KPI"]
 if user_email not in special_access_users:
@@ -116,33 +101,33 @@ if user_email not in special_access_users:
 
 section = st.sidebar.radio("📁 Navigation", allowed)
 
+# --- SUPABASE IMAGE URL ---
 def get_supabase_image_url(filename):
     return f"{url}/storage/v1/object/public/restaurant-images/{filename}"
 
-# ✅ KPI
+# --- KPI ---
 if section == "Current Stats / KPI":
     st.title("📊 System KPI")
     treated = dfs["treated_restaurant_data"]
     notices = dfs["notice_followup_tracking"]
-
     st.metric("Total Restaurants", len(treated))
     if not notices.empty:
         returned = notices[notices["delivery_status"].str.lower() == "returned"].shape[0]
         st.metric("Returned Notices", returned)
 
-# ✅ Restaurant Profile
+# --- RESTAURANT PROFILE ---
 elif section == "Restaurant Profile":
     st.title("🏪 Restaurant Profile")
     treated = dfs["treated_restaurant_data"]
     treated["label"] = treated["id"].astype(str) + " - " + treated["restaurant_name"]
     selected = st.selectbox("Select Restaurant", treated["label"])
     selected_id = selected.split(" - ")[0]
-
     row = treated[treated["id"].astype(str) == selected_id].iloc[0]
     st.write(f"**Name:** {row['restaurant_name']}")
     st.write(f"**Address:** {row['restaurant_address']}")
     st.write(f"**Status:** {row['compliance_status']}")
 
+    # Images
     imgs = dfs["restaurant_images"]
     imgs = imgs[imgs["restaurant_id"].astype(str) == selected_id]
     urls = [get_supabase_image_url(i['image_path']) for _, i in imgs.iterrows()]
@@ -152,6 +137,7 @@ elif section == "Restaurant Profile":
     else:
         st.info("No images.")
 
+    # Comments
     comments = dfs["officer_comments"]
     comments = comments[comments["restaurant_id"].astype(str) == selected_id]
     st.markdown("### Officer Comments")
@@ -172,7 +158,7 @@ elif section == "Restaurant Profile":
             st.success("Submitted.")
             st.rerun()
 
-# ✅ Data Browser
+# --- DATA BROWSER ---
 elif section == "Data Browser":
     st.title("📂 Data Browser")
     options = [
