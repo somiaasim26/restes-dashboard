@@ -136,7 +136,7 @@ elif section == "Restaurant Profile":
                 "timestamp": datetime.utcnow().isoformat()
             }).execute()
             st.success("Submitted.")
-            st.experimental_rerun()
+            st.rerun()
 
     # ✅ Export PDF
     if st.button("📄 Download PDF"):
