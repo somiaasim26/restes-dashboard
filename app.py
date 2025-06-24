@@ -167,3 +167,4 @@ elif section == "Restaurant Profile":
         pdf_output.seek(0)
         st.download_button("Download PDF", pdf_output, f"{row['restaurant_name']}.pdf")
 
+#############
