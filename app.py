@@ -305,13 +305,11 @@ elif section == "Restaurant Profile":
     if officer_id:
         df = df[df["officer_id"] == officer_id]
         st.info(f"Showing restaurants for Officer {officer_id}")
-    else:
-        st.success("Showing all restaurants")
-
+    
     # --- Compliance Summary Buttons ---
     registered_df = df[df["compliance_status"] == "Registered"]
-    unregistered_df = df[df["compliance_status"] != "Registered"]
-    filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
+    unregistered_df = df[df["compliance_status"] != "Unregistered"]
+    filers_df = df[df["compliance_status"] != "Filed"]
 
     st.markdown("### 📊 Monthly Compliance Summary")
     col1, col2, col3 = st.columns(3)
@@ -421,22 +419,34 @@ elif section == "Restaurant Profile":
                 label = label_map.get(col.lower(), col.replace("_", " ").title())
                 value = row[col]
                 # Make long links clickable + scrollable
-                value_display = f"<a href='{value}' target='_blank'>{value}</a>" if "http" in str(value) else str(value)
+                                # Format links and wrap them if too long
+                value_display = (
+                    f"<a href='{value}' target='_blank' style='word-break: break-all; color:#1d4ed8;'>{value}</a>"
+                    if "http" in str(value).lower()
+                    else str(value)
+                )
 
                 (col1 if i % 2 == 0 else col2).markdown(f"""
                     <div style='
                         background-color: #f1f5f9;
-                        padding: 8px 12px;
+                        padding: 10px 12px;
                         border-radius: 6px;
                         margin-bottom: 8px;
                         border-left: 4px solid #2563eb;
-                        max-width: 100%;
-                        overflow-x: auto;
-                        white-space: nowrap;
+                        font-size: 0.92rem;
+                        line-height: 1.4;
+                        max-height: 4.2em;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        display: -webkit-box;
+                        -webkit-line-clamp: 2;
+                        -webkit-box-orient: vertical;
+                        overflow-wrap: break-word;
                     '>
                         <strong>{label}:</strong> {value_display}
                     </div>
                 """, unsafe_allow_html=True)
+
 
 
     # ---------------------- SKIP REASON ----------------------
