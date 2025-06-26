@@ -420,6 +420,9 @@ elif section == "Restaurant Profile":
             if pd.notna(row[col]) and col != "id":
                 label = label_map.get(col.lower(), col.replace("_", " ").title())
                 value = row[col]
+                # Make long links clickable + scrollable
+                value_display = f"<a href='{value}' target='_blank'>{value}</a>" if "http" in str(value) else str(value)
+
                 (col1 if i % 2 == 0 else col2).markdown(f"""
                     <div style='
                         background-color: #f1f5f9;
@@ -427,10 +430,14 @@ elif section == "Restaurant Profile":
                         border-radius: 6px;
                         margin-bottom: 8px;
                         border-left: 4px solid #2563eb;
+                        max-width: 100%;
+                        overflow-x: auto;
+                        white-space: nowrap;
                     '>
-                        <strong>{label}:</strong> {value}
+                        <strong>{label}:</strong> {value_display}
                     </div>
                 """, unsafe_allow_html=True)
+
 
     # ---------------------- SKIP REASON ----------------------
     st.markdown("### 📝 Reason for Not Sending Notice")
@@ -440,9 +447,7 @@ elif section == "Restaurant Profile":
         "Not Liable – turnover < 6M",
         "Not a Restaurant – Retail or Non-Food",
         "Already Registered with PRA",
-        "Closed / Inactive Business",
-        "Outside PRA Jurisdiction"
-    ]
+        "Closed / Inactive Business"    ]
 
     # UI for selection
     selected_reason = st.radio("Select reason for not sending notice:", reason_options, key=f"reason_radio_{selected_id}_{user_email}")
