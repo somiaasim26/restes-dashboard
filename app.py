@@ -90,6 +90,7 @@ tables = {
     "officer_comments": "Officer Comments",
     "enforcement_tracking": "Enforcement Tracking",
     "officer_compliance_updates": "Officer Updates",
+    "notice_skip_reasons": "Notice Skip Reasons",
     "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
     "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3",
 }
@@ -158,32 +159,34 @@ if section == "Current Stats / KPI":
                 left_on="restaurant_id", right_on="id", how="left"
             ).fillna("")
 
-            for oid in sorted(merged["officer_id"].dropna().unique()):
-                off_df = merged[merged["officer_id"] == oid]
-                returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-                corrected_names = (off_df["correct_name"].str.strip() != "").sum()
-                corrected_address = (off_df["correct_address"].str.strip() != "").sum()
+            for oid in officer_ids:
+                officer_df = treated_df[treated_df["officer_id"] == str(oid)]
 
-                with st.expander(f"🕵️ Officer {oid} — Notices Returned: {returned}"):
-                    col1, col2 = st.columns(2)
-                    col1.metric("📬 Notices Returned", returned)
-                    col2.metric("📛 Corrected Names", corrected_names)
+                with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {len(officer_df)}"):
+                    st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]].head(10))
+                    if st.button(f"📄 Show More Assigned to Officer {oid}", key=f"btn_more_{oid}"):
+                        st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]])
 
-                    resend_df = off_df[
-                        (off_df["delivery_status"].str.lower() == "returned") &
-                        (
-                            (off_df["correct_name"].fillna("").str.strip() != "") |
-                            (off_df["correct_address"].fillna("").str.strip() != "")
+                if not tracking_df.empty and "restaurant_id" in tracking_df.columns:
+                    try:
+                        tracking_data = tracking_df.merge(
+                            treated_df[["id", "officer_id"]],
+                            left_on="restaurant_id", right_on="id", how="inner"
                         )
-                    ]
-                    total_resends = len(resend_df)
-                    st.markdown(f"### 📨 Total Notices to Re-send: `{total_resends}`")
-                    if not resend_df.empty:
-                        st.dataframe(resend_df[[
-                            "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
-                        ]].reset_index(drop=True))
-                    else:
-                        st.info("No returned notices for this officer.")
+                        officer_tracking = tracking_data[tracking_data["officer_id"] == str(oid)]
+
+                        with st.expander(f"📦 Enforcement Tracking — Officer {oid}"):
+                            st.write(f"Total Records: {len(officer_tracking)}")
+                            st.dataframe(officer_tracking[[  # Display top 10
+                                "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
+                            ]].head(10))
+
+                            if st.button(f"🔍 Load All Tracking — Officer {oid}", key=f"btn_tracking_{oid}"):
+                                st.dataframe(officer_tracking[[
+                                    "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
+                                ]])
+                    except Exception as e:
+                        st.warning(f"⚠️ Error loading tracking data: {e}")
 
 #------------------------------------------------------------------------------------------------------------------
 
