@@ -393,7 +393,7 @@ elif section == "Restaurant Profile":
     row = df[df["id"].astype(str) == selected_id]
     if not row.empty:
         row = row.iloc[0]
-        info_cols = ["restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
+        info_cols = ["id", "restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
         info_df = pd.DataFrame([[col, row[col]] for col in info_cols if col in row], columns=["Field", "Value"])
         st.table(info_df)
     else:
@@ -405,7 +405,7 @@ elif section == "Restaurant Profile":
     if not survey_row.empty:
         row = survey_row.iloc[0]
         label_map = {
-            "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "type_of_the_restaurant": "🍱 Restaurant Type",
+            "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "type_of_the_restaurant": "🍱 Type",
             "cuisine": "🧑‍🍳 Cuisine", "number_of_customers": "🧑‍🤝‍🧑 Customers", "number_of_chairs": "🪑 Chairs",
             "number_of_floors": "🏢 Floors", "number_of_tables": "🛎️ Tables", "seating_arrangement": "🧍‍🪑 Seating Arrangement",
             "air_conditioner": "❄ Air Conditioning", "credit_debit_card_acceptance": "💳 Card Acceptance",
