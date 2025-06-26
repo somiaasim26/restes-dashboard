@@ -235,7 +235,7 @@ if section == "Current Stats / KPI":
         combined["changed"] = combined["latest_formality_status"].str.lower() != combined["compliance_status"].str.lower()
         changed = combined[combined["changed"]]
 
-        st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
+        #st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
 
         for status_key, group_df in changed.groupby("latest_formality_status"):
             label = {
@@ -251,7 +251,7 @@ if section == "Current Stats / KPI":
         st.error(f"❌ Could not load status summary: {e}")
 
     # --- Filing Status Summary (Compact View) ---
-    st.markdown("## 🧾 Compact View of Changes")
+    #st.markdown("## 🧾 Compact View of Changes")
 
     try:
         followup_df = dfs["notice_followup_tracking"]
