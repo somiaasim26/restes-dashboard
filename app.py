@@ -118,7 +118,14 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 # ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
-   
+    from supabase import create_client
+
+    # Initialize Supabase connection (load from secrets.toml in real apps)
+    # --- Supabase Client ---
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["key"]
+    supabase = create_client(url, key)
+
     # Load data from Supabase
     treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("*").execute().data)
     followup_df = pd.DataFrame(supabase.table("notice_followup_tracking").select("*").execute().data)
