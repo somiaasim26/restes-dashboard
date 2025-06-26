@@ -308,8 +308,8 @@ elif section == "Restaurant Profile":
     
     # --- Compliance Summary Buttons ---
     registered_df = df[df["compliance_status"] == "Registered"]
-    unregistered_df = df[df["compliance_status"] != "Unregistered"]
-    filers_df = df[df["compliance_status"] != "Filed"]
+    unregistered_df = df[df["compliance_status"] == "Unregistered"]
+    filers_df = df[df["compliance_status"] == "Filed"]
 
     st.markdown("### 📊 Monthly Compliance Summary")
     col1, col2, col3 = st.columns(3)
@@ -433,7 +433,7 @@ elif section == "Restaurant Profile":
                         background-color: #f1f5f9;
                         padding: 10px 12px;
                         border-radius: 6px;
-                        margin-bottom: 8px;
+                        margin-bottom: 10px;
                         border-left: 4px solid #2563eb;
                         font-size: 0.92rem;
                         line-height: 1.4;
