@@ -76,8 +76,7 @@ if not st.session_state["authenticated"]:
 url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
-
-# --- Supabase Load ---
+# --- Supabase Load with Pagination ---
 @st.cache_data
 def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
     try:
@@ -96,6 +95,12 @@ def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
         st.error(f"❌ Failed to load `{table_name}`: {e}")
         return pd.DataFrame()
 
+# --- Utility: Clean ID Columns ---
+def clean_ids(df, id_cols):
+    for col in id_cols:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip().replace("nan", "")
+    return df.dropna(subset=id_cols)
 
 # --- Table Mapping ---
 tables = {
@@ -134,11 +139,10 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
 # --- Inside the KPI section ---
-
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
-    # --- Load tables
+    # Load required tables
     treated_df = load_table("treated_restaurant_data", columns=[
         "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
     ])
@@ -146,24 +150,23 @@ if section == "Current Stats / KPI":
         "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
     ])
 
-    # --- Clean and format IDs
+    # Clean IDs
     treated_df = clean_ids(treated_df, ["id", "officer_id"])
     followup_df = clean_ids(followup_df, ["restaurant_id"])
 
-    # Diagnostic: View raw IDs
+    # Diagnostic Preview
     st.markdown("### 🧪 Raw ID Samples")
     st.write("Sample `restaurant_id` in followup_df:", followup_df["restaurant_id"].dropna().unique()[:10].tolist())
     st.write("Sample `id` in treated_df:", treated_df["id"].dropna().unique()[:10].tolist())
 
-    # Optional: Show treated restaurants
     st.markdown(f"🧮 Total Treated Restaurants: `{len(treated_df)}`")
     st.markdown(f"📦 Total Follow-up Entries: `{len(followup_df)}`")
 
-    # Try matching restaurant IDs numerically only
+    # Align by numeric ID
     followup_df["clean_restaurant_id"] = followup_df["restaurant_id"].astype(str).str.extract(r"(\d+)")
     treated_df["clean_id"] = treated_df["id"].astype(str).str.extract(r"(\d+)")
 
-    # Merge on clean ID
+    # Merge tables
     merged = followup_df.merge(
         treated_df[["clean_id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
         left_on="clean_restaurant_id", right_on="clean_id", how="left"
@@ -172,11 +175,12 @@ if section == "Current Stats / KPI":
     st.markdown(f"🔗 Merged rows after matching: `{len(merged)}`")
 
     if merged["officer_id"].isnull().all():
-        st.error("❌ Merge failed: No officer_id linked. Try cleaning IDs differently.")
+        st.error("❌ Merge failed: No officer_id linked. Check ID patterns.")
+        st.stop()
     else:
         st.success("✅ Merge successful — proceeding with KPI summary.")
 
-    # Officer summary
+    # Officer breakdown
     officer_ids = sorted(merged["officer_id"].dropna().unique())
 
     for oid in officer_ids:
