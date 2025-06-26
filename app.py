@@ -93,6 +93,45 @@ def clean_ids(df, cols):
         df[col] = df[col].astype(str).str.strip().replace("nan", "")
     return df.dropna(subset=cols)
 
+
+# --- Table Mapping ---
+tables = {
+    "treated_restaurant_data": "Treated Restaurants",
+    "notice_followup_tracking": "Notice Followup Tracking",
+    "surveydata_treatmentgroup": "Survey Data",
+    "restaurant_images": "Restaurant Images",
+    "officer_comments": "Officer Comments",
+    "enforcement_tracking": "Enforcement Tracking",
+    "officer_compliance_updates": "Officer Updates",
+    "notice_skip_reasons": "Notice Skip Reasons",
+    "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
+    "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3",
+}
+dfs = {k: load_table(k) for k in tables}
+
+####
+# --- Welcome Page ---
+if st.session_state.get("section") == "Welcome":
+    st.title("📊 PRA Restaurant Enforcement Dashboard")
+    st.markdown("Welcome to the dashboard.")
+    st.link_button("📝 Submit Compliance Update", "https://restes-dashboard-form.streamlit.app/")
+    if st.button("Enter Dashboard"):
+        st.session_state["section"] = "Current Stats / KPI"
+        st.rerun()
+    st.stop()
+
+# --- Sidebar Setup ---
+user_email = st.session_state.get("email")
+if user_email in special_access_users:
+    allowed_sections = ["Current Stats / KPI", "Restaurant Profile"]
+else:
+    allowed_sections = ["Current Stats / KPI", "Data Browser", "Restaurant Profile", "Enforcement Tracking"]
+
+section = st.sidebar.radio("📁 Navigate", allowed_sections)
+
+
+# --- Inside the KPI section ---
+
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
@@ -152,43 +191,6 @@ if section == "Current Stats / KPI":
                 "restaurant_id", "restaurant_name", "delivery_status", 
                 "correct_address", "correct_name", "latest_formality_status", "compliance_status"
             ]].reset_index(drop=True))
-
-
-# --- Table Mapping ---
-tables = {
-    "treated_restaurant_data": "Treated Restaurants",
-    "notice_followup_tracking": "Notice Followup Tracking",
-    "surveydata_treatmentgroup": "Survey Data",
-    "restaurant_images": "Restaurant Images",
-    "officer_comments": "Officer Comments",
-    "enforcement_tracking": "Enforcement Tracking",
-    "officer_compliance_updates": "Officer Updates",
-    "notice_skip_reasons": "Notice Skip Reasons",
-    "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
-    "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3",
-}
-dfs = {k: load_table(k) for k in tables}
-
-####
-# --- Welcome Page ---
-if st.session_state.get("section") == "Welcome":
-    st.title("📊 PRA Restaurant Enforcement Dashboard")
-    st.markdown("Welcome to the dashboard.")
-    st.link_button("📝 Submit Compliance Update", "https://restes-dashboard-form.streamlit.app/")
-    if st.button("Enter Dashboard"):
-        st.session_state["section"] = "Current Stats / KPI"
-        st.rerun()
-    st.stop()
-
-# --- Sidebar Setup ---
-user_email = st.session_state.get("email")
-if user_email in special_access_users:
-    allowed_sections = ["Current Stats / KPI", "Restaurant Profile"]
-else:
-    allowed_sections = ["Current Stats / KPI", "Data Browser", "Restaurant Profile", "Enforcement Tracking"]
-
-section = st.sidebar.radio("📁 Navigate", allowed_sections)
-
 
 #------------------------------------------------------------------------------------------------------------------
 
