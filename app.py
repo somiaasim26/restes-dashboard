@@ -405,7 +405,7 @@ elif section == "Restaurant Profile":
     if not survey_row.empty:
         row = survey_row.iloc[0]
         label_map = {
-            "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "restaurant_type": "🍱 Restaurant Type",
+            "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "type_of_the_restaurant": "🍱 Restaurant Type",
             "cuisine": "🧑‍🍳 Cuisine", "number_of_customers": "🧑‍🤝‍🧑 Customers", "number_of_chairs": "🪑 Chairs",
             "number_of_floors": "🏢 Floors", "number_of_tables": "🛎️ Tables", "seating_arrangement": "🧍‍🪑 Seating Arrangement",
             "air_conditioner": "❄ Air Conditioning", "credit_debit_card_acceptance": "💳 Card Acceptance",
