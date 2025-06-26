@@ -121,44 +121,45 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
-    # Fetch data directly from Supabase
     treated_df = dfs["treated_restaurant_data"]
-    followups_df = dfs["notice_followup_tracking"]
+    followup_df = dfs["notice_followup_tracking"]
 
-    # Convert IDs to string for consistency
+    # Ensure columns are strings
     treated_df["id"] = treated_df["id"].astype(str)
-    followups_df["restaurant_id"] = followups_df["restaurant_id"].astype(str)
+    treated_df["officer_id"] = treated_df["officer_id"].astype(str)
+    followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
+    followup_df["delivery_status"] = followup_df["delivery_status"].fillna("").astype(str)
 
-    # Merge both tables on restaurant_id
-    merged_df = treated_df.merge(
-        followups_df,
+    # Merge follow-ups with treated restaurants using ID
+    merged = pd.merge(
+        treated_df,
+        followup_df,
         left_on="id",
         right_on="restaurant_id",
         how="left"
     )
 
-    # Handle nulls
-    merged_df["delivery_status"] = merged_df["delivery_status"].fillna("")
-    merged_df["officer_id"] = merged_df["officer_id"].fillna("")
-
-    officer_ids = sorted(merged_df["officer_id"].dropna().unique())
+    officer_ids = sorted(treated_df["officer_id"].dropna().unique())
 
     for oid in officer_ids:
-        officer_df = merged_df[merged_df["officer_id"] == oid]
+        assigned = treated_df[treated_df["officer_id"] == oid]
+        total_restaurants = len(assigned)
 
-        total_restaurants = len(officer_df["id"].unique())
-        returned_count = officer_df["delivery_status"].str.lower().eq("returned").sum()
+        officer_followups = merged[merged["officer_id"] == oid]
+        returned_notices = officer_followups[
+            officer_followups["delivery_status"].str.lower() == "returned"
+        ]
 
-        with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {total_restaurants}", expanded=False):
+        st.markdown("---")
+        with st.expander(f"🧑 Officer ID: {oid} — Assigned Restaurants: {total_restaurants}", expanded=False):
             st.markdown(f"""
-                - 🧾 **Total Restaurants**: {total_restaurants}  
-                - 📬 **Returned Notices**: {returned_count}
+                - 🧾 **Total Assigned Restaurants**: `{total_restaurants}`  
+                - 🔁 **Returned Notices**: `{len(returned_notices)}`
             """)
-            
-            st.markdown("### 🗺️ Returned Notices Details")
-            if returned_count > 0:
-                returned_df = officer_df[officer_df["delivery_status"].str.lower() == "returned"]
-                st.dataframe(returned_df[[
+
+            st.markdown("### 📬 Returned Notices Details")
+            if not returned_notices.empty:
+                st.dataframe(returned_notices[[
                     "restaurant_name", "restaurant_address", "delivery_status", "correct_address", "correct_name"
                 ]].reset_index(drop=True))
             else:
