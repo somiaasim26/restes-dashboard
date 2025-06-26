@@ -320,37 +320,45 @@ if not survey_row.empty:
 
 # ---------------------- SKIP REASON ----------------------
 st.markdown("### 📝 Reason for Not Sending Notice")
+
 try:
-    existing_skip = dfs.get("notice_skip_reasons", pd.DataFrame())
-    if not existing_skip.empty and "restaurant_id" in existing_skip.columns:
-        skip_entry = existing_skip[
-            (existing_skip["restaurant_id"].astype(str) == selected_id) &
-            (existing_skip["officer_email"] == user_email)
+    skip_df = dfs.get("notice_skip_reasons", pd.DataFrame())
+
+    # Check if table loaded correctly and has required columns
+    if not skip_df.empty and {"restaurant_id", "officer_email", "reason"}.issubset(skip_df.columns):
+        skip_df["restaurant_id"] = skip_df["restaurant_id"].astype(str)
+        submitted = skip_df[
+            (skip_df["restaurant_id"] == selected_id) &
+            (skip_df["officer_email"] == user_email)
         ]
-        if not skip_entry.empty:
-            st.success(f"✅ Already submitted: {skip_entry.iloc[0]['reason']}")
+
+        if not submitted.empty:
+            st.success(f"✅ Already submitted: {submitted.iloc[0]['reason']}")
         else:
             reason = st.radio("Select reason:", [
                 "Not Liable – turnover < 6M or not a restaurant",
                 "Already Registered on FBR",
                 "Inaccessible / Demolished",
                 "Duplicate / Error in Listing"
-            ], key=f"reason_radio_{selected_id}_{user_email}")
+            ], key=f"skip_radio_{selected_id}_{user_email}")
 
             if st.button("✅ Submit Reason"):
                 from datetime import datetime
-                supabase.table("notice_skip_reasons").insert({
-                    "restaurant_id": selected_id,
-                    "officer_email": user_email,
-                    "reason": reason,
-                    "timestamp": datetime.utcnow().isoformat()
-                }).execute()
-                st.success("Reason submitted.")
-                st.rerun()
+                try:
+                    supabase.table("notice_skip_reasons").insert({
+                        "restaurant_id": selected_id,
+                        "officer_email": user_email,
+                        "reason": reason,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }).execute()
+                    st.success("✅ Reason submitted successfully.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Failed to submit reason: {e}")
     else:
-        st.warning("⚠️ No skip reason data loaded.")
+        st.warning("⚠️ No skip reason data loaded or missing required columns.")
 except Exception as e:
-    st.error(f"❌ Skip reason failed: {e}")
+    st.error(f"❌ Failed to load skip reasons: {e}")
 
 # ---------------------- CSV EXPORT ----------------------
 st.markdown("### 📥 Export Restaurant Data as CSV")
