@@ -175,9 +175,9 @@ elif section == "Restaurant Profile":
     df = dfs["treated_restaurant_data"]
     survey_df = dfs["surveydata_treatmentgroup"]
     officer_ids = {
-    "Haali1@live.com": "3",
-    "Kamranpra@gmail.com": "2",
-    "Saudatiq90@gmail.com": "1"
+        "Haali1@live.com": "3",
+        "Kamranpra@gmail.com": "2",
+        "Saudatiq90@gmail.com": "1"
     }
     officer_id = officer_ids.get(user_email)
 
@@ -188,12 +188,12 @@ elif section == "Restaurant Profile":
     else:
         st.success("Showing all restaurants")
 
-    # Filtering
+    # Compliance filtering
     registered_df = df[df.get("compliance_status") == "Registered"]
     unregistered_df = df[df.get("compliance_status") != "Registered"]
     filers_df = df[df.get("ntn").notna() & (df.get("ntn").astype(str).str.strip() != "")]
 
-    # Quick Buttons View
+    # Compliance Summary Buttons
     st.markdown("### 📊 Monthly Compliance Summary")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -213,22 +213,27 @@ elif section == "Restaurant Profile":
     rest_df = rest_df.sort_values(by="id", key=lambda x: x.str.zfill(10))
 
     selected_label = st.selectbox("🔍 Search by ID or Name", rest_df['label'].tolist())
-    selected_id = selected_label.split(" - ")[0]
-    selected_name = selected_label.split(" - ")[1]
+    selected_id = selected_label.split(" - ")[0].strip()
+    selected_name = selected_label.split(" - ")[1].strip()
 
     st.subheader(f"🏪 {selected_name}")
 
-    # Images
+    # -------------------- Image Display Section --------------------
     st.markdown("### 🖼️ Restaurant Images")
-    imgs = dfs["restaurant_images"]
-    imgs = imgs[imgs["restaurant_id"].astype(str) == selected_id]
+    imgs = dfs["restaurant_images"].copy()
+    imgs["restaurant_id"] = imgs["restaurant_id"].astype(str).str.strip().str.replace('"', '').str.replace("'", '')
+    selected_id = selected_id.strip()
+    imgs = imgs[imgs["restaurant_id"] == selected_id]
+
     image_type_map = {"front": "Front Image", "menu": "Menu Image", "receipt": "Receipt Image"}
 
     def get_supabase_url(filename):
         return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
     def clean_filename(path):
-        return os.path.basename(str(path)).strip('"').strip("'")
+        if isinstance(path, str):
+            return os.path.basename(path.strip().replace('"', '').replace("'", '').replace("\\", "/"))
+        return ""
 
     if not imgs.empty:
         img_cols = st.columns(3)
@@ -236,13 +241,16 @@ elif section == "Restaurant Profile":
             with img_cols[i]:
                 subset = imgs[imgs["image_type"] == img_type]
                 if not subset.empty:
-                    st.image(get_supabase_url(clean_filename(subset.iloc[0]["image_path"])), caption=image_type_map[img_type])
+                    image_path = clean_filename(subset.iloc[0]["image_path"])
+                    image_url = get_supabase_url(image_path)
+                    st.image(image_url, caption=image_type_map[img_type])
+                    st.caption(f"[Debug] {image_url}")
                 else:
                     st.info(f"No {image_type_map[img_type]} found.")
     else:
         st.info("No images available for this restaurant.")
 
-    # Basic Info
+    # -------------------- Basic Info --------------------
     st.markdown("### 🗃️ Basic Info")
     row = df[df["id"].astype(str) == selected_id]
     if not row.empty:
@@ -253,7 +261,7 @@ elif section == "Restaurant Profile":
     else:
         st.warning("Restaurant not found.")
 
-    # Survey Info
+    # -------------------- Survey Info --------------------
     st.markdown("### 🏢 Survey Information")
     survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
     if not survey_row.empty:
@@ -283,6 +291,7 @@ elif section == "Restaurant Profile":
                         <strong>{label}:</strong> {value}
                     </div>
                 """, unsafe_allow_html=True)
+
 
 
         # --- Officer Comments Section ---
