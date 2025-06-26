@@ -418,37 +418,36 @@ elif section == "Restaurant Profile":
             if pd.notna(row[col]) and col != "id":
                 label = label_map.get(col.lower(), col.replace("_", " ").title())
                 value = row[col]
-                # Make long links clickable + scrollable
-                value_display = f"<a href='{value}' target='_blank'>{value}</a>" if "http" in str(value) else str(value)
 
-                                # Format links and wrap them if too long
-                value_display = (
-                    f"<a href='{value}' target='_blank' style='word-break: break-all; color:#1d4ed8;'>{value}</a>"
-                    if "http" in str(value).lower()
-                    else str(value)
-                )
-
-                (col1 if i % 2 == 0 else col2).markdown(f"""
-                    <div style='
-                        background-color: #f1f5f9;
-                        padding: 10px 12px;
-                        border-radius: 6px;
-                        margin-bottom: 10px;
-                        border-left: 4px solid #2563eb;
-                        font-size: 0.92rem;
-                        line-height: 1.4;
-                        max-height: 4.2em;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        display: -webkit-box;
-                        -webkit-line-clamp: 2;
-                        -webkit-box-orient: vertical;
-                        overflow-wrap: break-word;
-                    '>
-                        <strong>{label}:</strong> {value_display}
-                    </div>
-                """, unsafe_allow_html=True)
-
+                # Special formatting for long links
+                if col.lower() == "link":
+                    (col1 if i % 2 == 0 else col2).markdown(f"""
+                        <div style='
+                            background-color: #f1f5f9;
+                            padding: 8px 12px;
+                            border-radius: 6px;
+                            margin-bottom: 8px;
+                            border-left: 4px solid #2563eb;
+                            word-break: break-word;
+                            white-space: normal;
+                            max-width: 100%;
+                        '>
+                            <strong>{label}:</strong><br>
+                            <a href="{value}" target="_blank">{value}</a>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    (col1 if i % 2 == 0 else col2).markdown(f"""
+                        <div style='
+                            background-color: #f1f5f9;
+                            padding: 8px 12px;
+                            border-radius: 6px;
+                            margin-bottom: 8px;
+                            border-left: 4px solid #2563eb;
+                        '>
+                            <strong>{label}:</strong> {value}
+                        </div>
+                    """, unsafe_allow_html=True)
 
 
     # ---------------------- SKIP REASON ----------------------
