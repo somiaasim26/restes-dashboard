@@ -8,6 +8,8 @@ import os
 import requests
 from PIL import Image
 from io import BytesIO
+from PIL import Image, ExifTags
+
 #from fpdf import FPDF
 
 # --- Page Setup ---
@@ -336,10 +338,39 @@ elif section == "Restaurant Profile":
     st.subheader(f"🏪 {selected_name}")
 
     # ---------------------- IMAGE SECTION ----------------------
+    from PIL import Image, ExifTags
+
     st.markdown("### 🖼️ Restaurant Images")
 
-    def get_supabase_image_url(filename):
-        return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
+    @st.cache_resource(show_spinner=False)
+    def load_image_from_supabase(filename):
+        try:
+            url = f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                img = Image.open(BytesIO(response.content))
+
+                # Correct orientation using EXIF if available
+                try:
+                    for orientation in ExifTags.TAGS.keys():
+                        if ExifTags.TAGS[orientation] == 'Orientation':
+                            break
+                    exif = img._getexif()
+                    if exif:
+                        orientation_value = exif.get(orientation)
+                        if orientation_value == 3:
+                            img = img.rotate(180, expand=True)
+                        elif orientation_value == 6:
+                            img = img.rotate(270, expand=True)
+                        elif orientation_value == 8:
+                            img = img.rotate(90, expand=True)
+                except Exception:
+                    pass  # Skip orientation if EXIF not available
+
+                return img
+        except Exception:
+            return None
+        return None
 
     image_types = {
         "front": "📸 Front Image",
@@ -348,20 +379,16 @@ elif section == "Restaurant Profile":
     }
 
     cols = st.columns(3)
-    for idx, (img_type, title) in enumerate(image_types.items()):
+    for idx, (img_type, label) in enumerate(image_types.items()):
         with cols[idx]:
-            st.markdown(f"#### {title}")
+            st.markdown(f"#### {label}")
             filename = f"{selected_id}_{img_type}.jpg"
-            url = get_supabase_image_url(filename)
-            try:
-                response = requests.get(url)
-                if response.status_code == 200:
-                    image = Image.open(BytesIO(response.content))
-                    st.image(image, use_container_width=True, caption=filename)
-                else:
-                    st.info("Image not available.")
-            except Exception:
-                st.info("Image load error.")
+            image = load_image_from_supabase(filename)
+            if image:
+                st.image(image, use_container_width=True, caption=filename)
+            else:
+                st.info("Image not available.")
+
 
     # ---------------------- BASIC INFO ----------------------
     st.markdown("### 🗃️ Basic Info")
@@ -426,7 +453,7 @@ elif section == "Restaurant Profile":
         ntn_input = st.text_input("Enter NTN (if known):", placeholder="e.g. 1234567")
 
     # Submit button
-    if st.button("✅ Submit Reason to Supabase"):
+    if st.button("✅ Submit Reason"):
         try:
             from datetime import datetime
 
