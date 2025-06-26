@@ -419,6 +419,8 @@ elif section == "Restaurant Profile":
                 label = label_map.get(col.lower(), col.replace("_", " ").title())
                 value = row[col]
                 # Make long links clickable + scrollable
+                value_display = f"<a href='{value}' target='_blank'>{value}</a>" if "http" in str(value) else str(value)
+
                                 # Format links and wrap them if too long
                 value_display = (
                     f"<a href='{value}' target='_blank' style='word-break: break-all; color:#1d4ed8;'>{value}</a>"
