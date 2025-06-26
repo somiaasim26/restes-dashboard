@@ -78,8 +78,19 @@ key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
 
 @st.cache_data
-def load_table(table_name):
-    return pd.DataFrame(supabase.table(table_name).select("*").execute().data)
+def load_table(table_name: str, columns: list = None, order_by: str = None):
+    try:
+        query = supabase.table(table_name).select("*" if columns is None else ",".join(columns))
+        if order_by:
+            query = query.order(order_by)
+        response = query.execute()
+        data = response.data
+        if not data:
+            st.warning(f"⚠️ No data returned from Supabase table: {table_name}")
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.error(f"❌ Supabase error loading '{table_name}': {e}")
+        return pd.DataFrame()
 
 # --- Table Mapping ---
 tables = {
@@ -116,7 +127,7 @@ else:
 
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
-# ---------------------- Current Stats / KPI ----------------------
+
 # ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
@@ -168,7 +179,7 @@ if section == "Current Stats / KPI":
 #------------------------------------------------------------------------------------------------------------------
 
 # ✅ Updated Restaurant Profile Section
-
+# Ensure correct location
 elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
@@ -181,14 +192,13 @@ elif section == "Restaurant Profile":
     }
     officer_id = officer_ids.get(user_email)
 
-    # Apply filtering only for officers
     if officer_id:
         df = df[df["officer_id"] == officer_id]
         st.info(f"Showing restaurants for Officer {officer_id}")
     else:
         st.success("Showing all restaurants")
 
-    # Compliance filtering
+    # Filtering
     registered_df = df[df.get("compliance_status") == "Registered"]
     unregistered_df = df[df.get("compliance_status") != "Registered"]
     filers_df = df[df.get("ntn").notna() & (df.get("ntn").astype(str).str.strip() != "")]
@@ -206,54 +216,48 @@ elif section == "Restaurant Profile":
         if st.button(f"🧾 Filers ({len(filers_df)})"):
             st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
 
-    # Dropdown selector
+    # Dropdown
     rest_df = df[["id", "restaurant_name"]].dropna(subset=["id"]).copy()
-    rest_df['id'] = rest_df['id'].astype(str)
-    rest_df['label'] = rest_df['id'] + " - " + rest_df['restaurant_name'].fillna("")
+    rest_df["id"] = rest_df["id"].astype(str)
+    rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
     rest_df = rest_df.sort_values(by="id", key=lambda x: x.str.zfill(10))
 
-    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df['label'].tolist())
+    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
     selected_id = selected_label.split(" - ")[0].strip()
     selected_name = selected_label.split(" - ")[1].strip()
 
     st.subheader(f"🏪 {selected_name}")
 
-   # -------------------- Restaurant Images (by filename logic) --------------------
-import requests
-from PIL import Image
-from io import BytesIO
+    # -------------------- Restaurant Images --------------------
+    st.markdown("### 🖼️ Restaurant Images")
 
-# Helper to build public Supabase image URL
-def get_supabase_image_url(filename):
-    return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
+    import requests
+    from PIL import Image
+    from io import BytesIO
 
-# Image Display (3 types in columns)
-st.markdown("### 🖼️ Restaurant Images")
-image_types = {
-    "front": "📸 Front Images",
-    "menu": "🍽️ Menu Images",
-    "receipt": "🧾 Receipt Images"
-}
+    def get_supabase_image_url(filename):
+        return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
-cols = st.columns(3)
-for idx, (img_type, title) in enumerate(image_types.items()):
-    with cols[idx]:
-        st.markdown(f"#### {title}")
-        found = False
-        for i in range(5):  # preload first 5 images for each type
-            filename = f"{selected_id}_{img_type}.jpg" if i == 0 else f"{selected_id}_{img_type}_{i}.jpg"
-            url = get_supabase_image_url(filename)
-            try:
-                response = requests.get(url)
-                if response.status_code == 200:
-                    image = Image.open(BytesIO(response.content))
-                    st.image(image, use_container_width=True, caption=filename)
-                    found = True
-            except Exception:
-                continue
-        if not found:
-            st.info(f"No {img_type} images found.")
+    image_types = {
+        "front": "📸 Front Image",
+        "menu": "🍽️ Menu Image",
+        "receipt": "🧾 Receipt Image"
+    }
 
+    for img_type, label in image_types.items():
+        filename = f"{selected_id}_{img_type}.jpg"
+        url = get_supabase_image_url(filename)
+
+        st.markdown(f"#### {label}")
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                image = Image.open(BytesIO(response.content))
+                st.image(image, caption=filename, use_column_width="always")
+            else:
+                st.warning(f"No {img_type} image found.")
+        except Exception as e:
+            st.warning(f"Error loading image: {e}")
 
     # -------------------- Basic Info --------------------
     st.markdown("### 🗃️ Basic Info")
@@ -263,8 +267,6 @@ for idx, (img_type, title) in enumerate(image_types.items()):
         info_cols = ["restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
         info_df = pd.DataFrame([[col, row[col]] for col in info_cols if col in row], columns=["Field", "Value"])
         st.table(info_df)
-    else:
-        st.warning("Restaurant not found.")
 
     # -------------------- Survey Info --------------------
     st.markdown("### 🏢 Survey Information")
@@ -297,21 +299,15 @@ for idx, (img_type, title) in enumerate(image_types.items()):
                     </div>
                 """, unsafe_allow_html=True)
 
-
-
-        # --- Officer Comments Section ---
+    # -------------------- Skip Reason Section --------------------
     st.markdown("### 📝 Reason for Not Sending Notice")
 
-    # Safely pull skip reasons from Supabase
     try:
-        skip_reason_df = pd.DataFrame(
-            supabase.table("notice_skip_reasons").select("*").execute().data
-        )
+        skip_reason_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
     except Exception as e:
         skip_reason_df = pd.DataFrame()
         st.warning(f"⚠️ Unable to load previous skip reasons: {e}")
 
-    # Filter based on selected restaurant + logged-in officer
     already_submitted = False
     if not skip_reason_df.empty and "restaurant_id" in skip_reason_df.columns:
         skip_reason_df["restaurant_id"] = skip_reason_df["restaurant_id"].astype(str)
@@ -323,17 +319,15 @@ for idx, (img_type, title) in enumerate(image_types.items()):
             st.success(f"✅ Already submitted: {submitted.iloc[0]['reason']}")
             already_submitted = True
 
-    # Display form if not already submitted
     if not already_submitted:
         reason = st.radio("Select reason:", [
-        "Not Liable – Turnover < PKR 6M",
-        "Not a Restaurant – Retail or Non-Food",
-        "Already Registered with PRA",
-        "Duplicate Entry / Already Covered",
-        "Closed / Inactive Business",
-        "Outside PRA Jurisdiction"
-    ], key=f"reason_radio_{selected_id}_{user_email}")
-
+            "Not Liable – Turnover < PKR 6M",
+            "Not a Restaurant – Retail or Non-Food",
+            "Already Registered with PRA",
+            "Duplicate Entry / Already Covered",
+            "Closed / Inactive Business",
+            "Outside PRA Jurisdiction"
+        ], key=f"reason_radio_{selected_id}_{user_email}")
 
         if st.button("✅ Submit Reason"):
             try:
@@ -349,18 +343,15 @@ for idx, (img_type, title) in enumerate(image_types.items()):
             except Exception as e:
                 st.error(f"❌ Submission failed: {e}")
 
-
-    # CSV Export
+    # -------------------- CSV Export --------------------
     st.markdown("### 📥 Export Restaurant Data as CSV")
-
-    # Join treated + survey for full export
     csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
 
-    if officer_id:  # Officer login - only his assigned restaurants
+    if officer_id:
         if st.button("📤 Download Your Assigned Restaurants (CSV)"):
             csv = csv_data.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
-    else:  # Full access user
+    else:
         if st.button("📤 Download All Restaurants (CSV)"):
             csv = csv_data.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
