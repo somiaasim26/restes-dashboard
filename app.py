@@ -77,7 +77,7 @@ url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
 
-# --- Supabase Data Load ---
+# --- Supabase Load ---
 @st.cache_data
 def load_table(table_name: str, columns: list = None):
     try:
@@ -92,6 +92,66 @@ def clean_ids(df, cols):
     for col in cols:
         df[col] = df[col].astype(str).str.strip().replace("nan", "")
     return df.dropna(subset=cols)
+
+if section == "Current Stats / KPI":
+    st.title("📊 PRA System Status")
+
+    # --- Load tables
+    treated_df = load_table("treated_restaurant_data", columns=[
+        "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
+    ])
+    followup_df = load_table("notice_followup_tracking", columns=[
+        "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
+    ])
+
+    # --- Clean and format IDs
+    treated_df = clean_ids(treated_df, ["id", "officer_id"])
+    followup_df = clean_ids(followup_df, ["restaurant_id"])
+
+    # Diagnostic: View raw IDs
+    st.markdown("### 🧪 Raw ID Samples")
+    st.write("Sample `restaurant_id` in followup_df:", followup_df["restaurant_id"].dropna().unique()[:10].tolist())
+    st.write("Sample `id` in treated_df:", treated_df["id"].dropna().unique()[:10].tolist())
+
+    # Optional: Show treated restaurants
+    st.markdown(f"🧮 Total Treated Restaurants: `{len(treated_df)}`")
+    st.markdown(f"📦 Total Follow-up Entries: `{len(followup_df)}`")
+
+    # Try matching restaurant IDs numerically only
+    followup_df["clean_restaurant_id"] = followup_df["restaurant_id"].astype(str).str.extract(r"(\d+)")
+    treated_df["clean_id"] = treated_df["id"].astype(str).str.extract(r"(\d+)")
+
+    # Merge on clean ID
+    merged = followup_df.merge(
+        treated_df[["clean_id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
+        left_on="clean_restaurant_id", right_on="clean_id", how="left"
+    )
+
+    st.markdown(f"🔗 Merged rows after matching: `{len(merged)}`")
+
+    if merged["officer_id"].isnull().all():
+        st.error("❌ Merge failed: No officer_id linked. Try cleaning IDs differently.")
+    else:
+        st.success("✅ Merge successful — proceeding with KPI summary.")
+
+    # Officer summary
+    officer_ids = sorted(merged["officer_id"].dropna().unique())
+
+    for oid in officer_ids:
+        off_df = merged[merged["officer_id"] == oid]
+        total = len(off_df)
+        returned = (off_df["delivery_status"].str.lower() == "returned").sum()
+        corrected = ((off_df["correct_name"].fillna("").str.strip() != "") | (off_df["correct_address"].fillna("").str.strip() != "")).sum()
+
+        with st.expander(f"👮 Officer {oid} — Restaurants: {total} — Returned: {returned}"):
+            col1, col2 = st.columns(2)
+            col1.metric("📬 Notices Returned", returned)
+            col2.metric("🛠️ With Corrections", corrected)
+
+            st.dataframe(off_df[[
+                "restaurant_id", "restaurant_name", "delivery_status", 
+                "correct_address", "correct_name", "latest_formality_status", "compliance_status"
+            ]].reset_index(drop=True))
 
 
 # --- Table Mapping ---
