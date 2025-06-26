@@ -97,7 +97,6 @@ tables = {
 dfs = {k: load_table(k) for k in tables}
 
 ####
-
 # --- Welcome Page ---
 if st.session_state.get("section") == "Welcome":
     st.title("📊 PRA Restaurant Enforcement Dashboard")
@@ -118,204 +117,59 @@ else:
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 # ---------------------- Current Stats / KPI ----------------------
-
-
-# --- Current Stats / KPI (Special User Layout) ---
 if section == "Current Stats / KPI":
-    is_special_user = user_email in special_access_users
-
-    if is_special_user:
-        st.title("📊 PRA System Status")
-
-        # Load required tables
-        treated_df = st.dataframe["Treated Restaurants"]
-        tracking_df = st.dataframe.get("Enforcement Tracking", pd.DataFrame())
-
-        # Count
-        total_restaurants = len(treated_df)
-
-        st.markdown("""
-            <style>
-            .short-metric-box {
-                padding: 1rem;
-                border-radius: 10px;
-                color: white;
-                font-size: 1.2rem;
-                font-weight: 600;
-                background-color: #2563eb;
-                box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
-                text-align: center;
-                width: fit-content;
-                min-width: 200px;
-                margin-bottom: 1rem;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f'<div class="short-metric-box">📘 Total Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
-
-        officer_ids = treated_df["officer_id"].dropna().unique()
-        officer_ids = sorted([int(o) for o in officer_ids if str(o).isdigit()])
-
-        for oid in officer_ids:
-            officer_df = treated_df[treated_df["officer_id"] == str(oid)]
-
-            with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {len(officer_df)}"):
-                st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]])
-
-            if not tracking_df.empty and "restaurant_id" in tracking_df.columns:
-                try:
-                    tracking_data = tracking_df.merge(
-                        treated_df[["id", "officer_id"]],
-                        left_on="restaurant_id", right_on="id", how="inner"
-                    )
-                    officer_tracking = tracking_data[tracking_data["officer_id"] == str(oid)]
-
-                    with st.expander(f"📦 Enforcement Tracking — Officer {oid}"):
-                        if not officer_tracking.empty:
-                            st.dataframe(officer_tracking[[
-                                "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-                            ]])
-                        else:
-                            st.info("No enforcement tracking records found.")
-                except Exception as e:
-                    st.warning(f"⚠️ Error loading tracking data: {e}")
-    #else:
-       # st.warning("You do not have permission to view this page.")
-
-    # --- PI View (Slim) ---
+    st.title("📊 PRA System Status")
     st.markdown("## 📋 Notice Follow-up & Latest Updates")
 
-    try:
-        df = st.dataframe["Notice Followup Tracking"]
-        treated_df = st.dataframe["Treated Restaurants"]
+    # Load data from Supabase (already loaded in dfs)
+    treated_df = dfs["treated_restaurant_data"]
+    followup_df = dfs["notice_followup_tracking"]
 
-        df["restaurant_id"] = df["restaurant_id"].astype(str)
-        treated_df["id"] = treated_df["id"].astype(str)
-        merged = pd.merge(df, treated_df[['id', 'officer_id']], left_on="restaurant_id", right_on="id", how="left")
-        merged.fillna("", inplace=True)
+    # Ensure proper types
+    treated_df["officer_id"] = treated_df["officer_id"].astype(str)
+    treated_df["id"] = treated_df["id"].astype(str)
+    followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
 
-        officer_ids = sorted(merged["officer_id"].dropna().unique())
+    # Merge officer info into follow-up data
+    merged = followup_df.merge(
+        treated_df[["id", "officer_id"]],
+        left_on="restaurant_id", right_on="id", how="left"
+    )
 
-        for oid in officer_ids:
-            off_df = merged[merged["officer_id"] == oid]
-            total = len(off_df)
-            returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-            corrected_names = (off_df["correct_name"].str.strip() != "").sum()
-            corrected_address = (off_df["correct_address"].str.strip() != "").sum()
+    officer_ids = sorted(treated_df["officer_id"].dropna().unique(), key=lambda x: int(x))
 
-            with st.expander(f"🕵️ Officer ID {oid} — Restaurants: {total} — Notices Returned: {returned}", expanded=False):
-                col1, col2 = st.columns(2)
-                col1.metric("📬 Notices Returned", returned)
-                col2.metric("📛 Corrected Names", corrected_names)
+    for oid in officer_ids:
+        officer_restaurants = treated_df[treated_df["officer_id"] == oid]
+        total_restaurants = len(officer_restaurants)
 
-                st.markdown("### 🗺️ Restaurants to Re-send Notice")
-                # Only keep restaurants with returned notice AND corrected info
-                resend_df = off_df[
-                    (off_df["delivery_status"].str.lower() == "returned") &
-                    (
-                        (off_df["correct_name"].fillna("").str.strip() != "") |
-                        (off_df["correct_address"].fillna("").str.strip() != "")
-                    )
-                ]
+        officer_followups = merged[merged["officer_id"] == oid]
+        returned_count = officer_followups["delivery_status"].str.lower().eq("returned").sum()
 
-                total_resends = len(resend_df)
+        # Only returned + corrected info
+        resend_df = officer_followups[
+            (officer_followups["delivery_status"].str.lower() == "returned") &
+            (
+                (officer_followups["correct_name"].fillna("").str.strip() != "") |
+                (officer_followups["correct_address"].fillna("").str.strip() != "")
+            )
+        ]
+        resend_count = len(resend_df)
 
-                st.markdown(f"### 📨 Total Notices to Re-send: `{total_resends}`")
+        with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {total_restaurants}"):
+            col1, col2, col3 = st.columns(3)
+            col1.metric("📘 Assigned", total_restaurants)
+            col2.metric("📬 Returned Notices", returned_count)
+            col3.metric("📨 Ready to Resend", resend_count)
 
-                if not resend_df.empty:
-                    st.dataframe(resend_df[[
-                        "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
-                    ]].reset_index(drop=True))
-                
-                else:
-                    st.info("No returned notices for this officer.")
+            if not officer_restaurants.empty:
+                st.markdown("### 🏪 Sample Assigned Restaurants")
+                st.dataframe(officer_restaurants[["id", "restaurant_name", "restaurant_address"]].head(10))
 
-    except Exception as e:
-        st.error(f"❌ Error loading PI View: {e}")
-
-    # --- Filing Status Summary (Grouped Count with Drilldown) ---
-    st.markdown("## 🔄 Latest Formality Status")
-
-    try:
-        df = st.dataframe["Notice Followup Tracking"]
-        treated_df = st.dataframe["Treated Restaurants"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
-
-        df["restaurant_id"] = df["restaurant_id"].astype(str)
-        treated_df["id"] = treated_df["id"].astype(str)
-
-        # Merge old and new status
-        combined = pd.merge(df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("None").str.strip()
-        combined["compliance_status"] = combined["compliance_status"].fillna("None").str.strip()
-
-        # Only changed rows
-        combined["changed"] = combined["latest_formality_status"].str.lower() != combined["compliance_status"].str.lower()
-        changed = combined[combined["changed"]]
-
-        st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
-
-        status_groups = changed.groupby("latest_formality_status")
-
-        for status_key, group_df in status_groups:
-            # Rename display labels
-            display_label = status_key
-            if status_key.lower() == "filer":
-                display_label = "🟢 Started Filing"
-            elif status_key.lower() == "none":
-                display_label = "⚪ No Change in Formality"
-
-            with st.expander(f"{display_label} — {len(group_df)}", expanded=False):
-                st.dataframe(group_df[[
-                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
-                ]].reset_index(drop=True))
-
-
-    except Exception as e:
-        st.error(f"❌ Could not load summary: {e}")
-
-    # --- Filing Status Summary (Compact View) ---
-    st.markdown("## 🔄 Filing Status Change Summary")
-
-    try:
-        formality_df = st.dataframe["Notice Followup Tracking"]
-        treated_df = st.dataframe["Treated Restaurants"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
-
-        formality_df["restaurant_id"] = formality_df["restaurant_id"].astype(str)
-        treated_df["id"] = treated_df["id"].astype(str)
-
-        combined = pd.merge(formality_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
-        changed = combined[combined["changed"]].copy()
-
-        total_changed = len(changed)
-        st.markdown(f"### 🧾 Total Restaurants With Status Changes: <span style='background:#dcfce7;padding:5px 10px;border-radius:5px;font-weight:bold;'>{total_changed}</span>", unsafe_allow_html=True)
-
-        # Optional dropdown to filter or explore
-        restaurant_labels = changed.apply(lambda row: f"{row['restaurant_name']} ({row['id']})", axis=1).tolist()
-        selected_label = st.selectbox("🔍 Select a Restaurant", restaurant_labels)
-
-        selected_id = selected_label.split("(")[-1].replace(")", "").strip()
-        row = changed[changed["id"] == selected_id].iloc[0]
-
-        st.markdown(f"""
-        <div style='
-            border:1px solid #ddd;
-            padding:10px;
-            margin-top:10px;
-            border-radius:6px;
-            background-color:#f9f9f9;
-        '>
-            <b>🏪 {row['restaurant_name']}</b> <br>
-            📍 <i>{row['restaurant_address']}</i> <br>
-            🆔 ID: <code>{row['id']}</code> <br><br>
-            <b>Previous Status:</b> <span style='color:#d97706;'>{row['compliance_status']}</span><br>
-            <b>Latest Status:</b> <span style='color:#16a34a;'>{row['latest_formality_status']}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"❌ Could not load filing status summary: {e}")
+            if not resend_df.empty:
+                st.markdown("### 📦 Restaurants Needing Re-sent Notices")
+                st.dataframe(resend_df[[
+                    "restaurant_id", "delivery_status", "correct_name", "correct_address"
+                ]])
 
 #------------------------------------------------------------------------------------------------------------------
 
