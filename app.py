@@ -5,6 +5,9 @@ from supabase import create_client
 from datetime import datetime
 import io
 import os
+import requests
+from PIL import Image
+from io import BytesIO
 #from fpdf import FPDF
 
 # --- Page Setup ---
@@ -140,226 +143,351 @@ else:
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
-
-# --- Current Stats / KPI Section ---
 # ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
-    st.title("📊 PRA System Status")
+    is_special_user = user_email in special_access_users
 
-    treated_df = dfs["treated_restaurant_data"]
-    followup_df = dfs["notice_followup_tracking"]
+    if is_special_user:
+        st.title("📊 PRA System Status")
 
-    # --- Clean & Cast ---
-    treated_df = treated_df.dropna(subset=["id", "officer_id"])
-    followup_df = followup_df.dropna(subset=["restaurant_id"])
+        # Load data
+        treated_df = dfs["treated_restaurant_data"]
+        followup_df = dfs["notice_followup_tracking"]
 
-    treated_df["id"] = treated_df["id"].astype(str).str.strip()
-    treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.strip()
-    followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
-    followup_df["delivery_status"] = followup_df["delivery_status"].fillna("").astype(str)
+        treated_df["id"] = treated_df["id"].astype(str).str.strip()
+        treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.strip()
+        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+        followup_df["delivery_status"] = followup_df["delivery_status"].fillna("").astype(str)
 
-    # --- Officer-wise Stats ---
-    officer_ids = sorted(treated_df["officer_id"].dropna().unique())
+        # Count
+        total_restaurants = len(treated_df)
+        st.markdown("""
+            <style>
+            .short-metric-box {
+                padding: 1rem;
+                border-radius: 10px;
+                color: white;
+                font-size: 1.2rem;
+                font-weight: 600;
+                background-color: #2563eb;
+                box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+                text-align: center;
+                width: fit-content;
+                min-width: 200px;
+                margin-bottom: 1rem;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="short-metric-box">📘 Total Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
 
-    for oid in officer_ids:
-        # Assigned restaurants
-        assigned = treated_df[treated_df["officer_id"] == oid]
-        assigned_ids = assigned["id"].tolist()
-        total_restaurants = len(assigned)
+        officer_ids = sorted(treated_df["officer_id"].dropna().unique())
 
-        # Returned follow-ups (only those with "returned" and linked to this officer)
-        returned_notices = followup_df[
-            (followup_df["delivery_status"].str.lower() == "returned") &
-            (followup_df["restaurant_id"].isin(assigned_ids))
-        ]
+        for oid in officer_ids:
+            officer_df = treated_df[treated_df["officer_id"] == oid]
+            total = len(officer_df)
 
-        st.markdown("---")
-        with st.expander(f"🧑 Officer ID: {oid} — Assigned Restaurants: {total_restaurants}", expanded=False):
-            st.markdown(f"""
-                - 🧾 **Total Assigned Restaurants**: `{total_restaurants}`  
-                - 🔁 **Returned Notices**: `{len(returned_notices)}`  
-            """)
+            assigned_ids = officer_df["id"].tolist()
+            returned_notices = followup_df[
+                (followup_df["delivery_status"].str.lower() == "returned") &
+                (followup_df["restaurant_id"].isin(assigned_ids))
+            ]
 
-            st.markdown("### 📬 Returned Notices Details")
-            if not returned_notices.empty:
-                # Add back restaurant info
-                display_df = returned_notices.merge(
-                    treated_df[["id", "restaurant_name", "restaurant_address"]],
-                    left_on="restaurant_id", right_on="id", how="left"
-                )
-                st.dataframe(display_df[[
-                    "restaurant_id", "restaurant_name", "restaurant_address",
-                    "delivery_status", "correct_address", "reason"
+            with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {total}"):
+                st.markdown(f"""
+                    - 🧾 **Total Assigned Restaurants**: `{total}`  
+                    - 🔁 **Returned Notices**: `{len(returned_notices)}`  
+                """)
+
+                if not returned_notices.empty:
+                    resend_df = returned_notices[
+                        (returned_notices["correct_address"].fillna("").str.strip() != "") |
+                        (returned_notices["reason"].fillna("").str.strip() != "")
+                    ]
+                    total_resends = len(resend_df)
+
+                    st.markdown(f"### 📨 Notices to Re-send: `{total_resends}`")
+                    st.dataframe(resend_df[[
+                        "restaurant_id", "delivery_status", "correct_address", "reason"
+                    ]].reset_index(drop=True))
+                else:
+                    st.info("No returned notices for this officer.")
+
+    # --- Filing Status Summary (Grouped) ---
+    st.markdown("## 🔄 Latest Formality Status")
+
+    try:
+        followup_df = dfs["notice_followup_tracking"]
+        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+
+        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+        treated_df["id"] = treated_df["id"].astype(str).str.strip()
+
+        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("None").str.strip()
+        combined["compliance_status"] = combined["compliance_status"].fillna("None").str.strip()
+        combined["changed"] = combined["latest_formality_status"].str.lower() != combined["compliance_status"].str.lower()
+        changed = combined[combined["changed"]]
+
+        st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
+
+        for status_key, group_df in changed.groupby("latest_formality_status"):
+            label = {
+                "filer": "🟢 Started Filing",
+                "none": "⚪ No Change"
+            }.get(status_key.lower(), status_key)
+
+            with st.expander(f"{label} — {len(group_df)}"):
+                st.dataframe(group_df[[
+                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
                 ]].reset_index(drop=True))
-            else:
-                st.info("No returned notices for this officer.")
+    except Exception as e:
+        st.error(f"❌ Could not load status summary: {e}")
+
+    # --- Filing Status Summary (Compact View) ---
+    st.markdown("## 🧾 Compact View of Changes")
+
+    try:
+        followup_df = dfs["notice_followup_tracking"]
+        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+
+        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+        treated_df["id"] = treated_df["id"].astype(str).str.strip()
+
+        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+        combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
+        changed = combined[combined["changed"]].copy()
+
+        total_changed = len(changed)
+        st.markdown(f"### 🧾 Restaurants With Status Changes: <span style='background:#dcfce7;padding:5px 10px;border-radius:5px;font-weight:bold;'>{total_changed}</span>", unsafe_allow_html=True)
+
+        restaurant_labels = changed.apply(lambda row: f"{row['restaurant_name']} ({row['id']})", axis=1).tolist()
+        selected_label = st.selectbox("🔍 Select a Restaurant", restaurant_labels)
+
+        selected_id = selected_label.split("(")[-1].replace(")", "").strip()
+        row = changed[changed["id"] == selected_id].iloc[0]
+
+        st.markdown(f"""
+        <div style='
+            border:1px solid #ddd;
+            padding:10px;
+            margin-top:10px;
+            border-radius:6px;
+            background-color:#f9f9f9;
+        '>
+            <b>🏪 {row['restaurant_name']}</b> <br>
+            📍 <i>{row['restaurant_address']}</i> <br>
+            🆔 ID: <code>{row['id']}</code> <br><br>
+            <b>Previous Status:</b> <span style='color:#d97706;'>{row['compliance_status']}</span><br>
+            <b>Latest Status:</b> <span style='color:#16a34a;'>{row['latest_formality_status']}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"❌ Could not load compact summary: {e}")
 
 #------------------------------------------------------------------------------------------------------------------
 
-# ✅ Updated Restaurant Profile Section
+#------ Data Browser ----
 
-import requests
-from PIL import Image
-from io import BytesIO
+elif section == "Data Browser":
+    st.title("📋 Supabase Data Browser")
+
+    table_names = list(tables.keys())
+    readable_names = [tables[t] for t in table_names]
+    selected_table_name = st.selectbox("📁 Choose a Table to View", options=table_names, format_func=lambda x: tables[x])
+
+    # Sample fetch (first 5 rows only)
+    @st.cache_data
+    def get_sample_data(table_name):
+        try:
+            return pd.DataFrame(supabase.table(table_name).select("*").limit(5).execute().data)
+        except Exception as e:
+            st.error(f"Error fetching sample: {e}")
+            return pd.DataFrame()
+
+    # Full fetch (on demand)
+    @st.cache_data
+    def get_full_data(table_name):
+        try:
+            return pd.DataFrame(supabase.table(table_name).select("*").execute().data)
+        except Exception as e:
+            st.error(f"Error fetching full data: {e}")
+            return pd.DataFrame()
+
+    st.markdown(f"### 🧾 Preview: {tables[selected_table_name]}")
+    sample_df = get_sample_data(selected_table_name)
+
+    if not sample_df.empty:
+        st.dataframe(sample_df)
+    else:
+        st.info("No sample data available or table is empty.")
+
+    if st.button("🔄 Load Full Table"):
+        full_df = get_full_data(selected_table_name)
+        st.markdown(f"### 📊 Full Dataset: {tables[selected_table_name]} ({len(full_df)} rows)")
+        st.dataframe(full_df)
+
 
 # ---------------------- Restaurant Profile Header ----------------------
-st.title("📋 Restaurant Summary Profile")
+elif section == "Restaurant Profile":
 
-df = dfs["treated_restaurant_data"]
-survey_df = dfs["surveydata_treatmentgroup"]
-officer_ids = {
-    "Haali1@live.com": "3",
-    "Kamranpra@gmail.com": "2",
-    "Saudatiq90@gmail.com": "1"
-}
-officer_id = officer_ids.get(user_email)
+    st.title("📋 Restaurant Summary Profile")
 
-# Filter for officer
-if officer_id:
-    df = df[df["officer_id"] == officer_id]
-    st.info(f"Showing restaurants for Officer {officer_id}")
-else:
-    st.success("Showing all restaurants")
 
-# --- Compliance Summary Buttons ---
-registered_df = df[df["compliance_status"] == "Registered"]
-unregistered_df = df[df["compliance_status"] != "Registered"]
-filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
+    df = dfs["treated_restaurant_data"]
+    survey_df = dfs["surveydata_treatmentgroup"]
+    officer_ids = {
+        "Haali1@live.com": "3",
+        "Kamranpra@gmail.com": "2",
+        "Saudatiq90@gmail.com": "1"
+    }
+    officer_id = officer_ids.get(user_email)
 
-st.markdown("### 📊 Monthly Compliance Summary")
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button(f"✅ Registered ({len(registered_df)})"):
-        st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
-with col2:
-    if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-        st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
-with col3:
-    if st.button(f"🧾 Filers ({len(filers_df)})"):
-        st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
+    # Filter for officer
+    if officer_id:
+        df = df[df["officer_id"] == officer_id]
+        st.info(f"Showing restaurants for Officer {officer_id}")
+    else:
+        st.success("Showing all restaurants")
 
-# --- Restaurant Selector ---
-rest_df = df[["id", "restaurant_name"]].dropna().copy()
-rest_df["id"] = rest_df["id"].astype(str)
-rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
-rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
+    # --- Compliance Summary Buttons ---
+    registered_df = df[df["compliance_status"] == "Registered"]
+    unregistered_df = df[df["compliance_status"] != "Registered"]
+    filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
 
-selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
-selected_id = selected_label.split(" - ")[0].strip()
-selected_name = selected_label.split(" - ")[1].strip()
+    st.markdown("### 📊 Monthly Compliance Summary")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button(f"✅ Registered ({len(registered_df)})"):
+            st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
+    with col2:
+        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
+            st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
+    with col3:
+        if st.button(f"🧾 Filers ({len(filers_df)})"):
+            st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
 
-st.subheader(f"🏪 {selected_name}")
+    # --- Restaurant Selector ---
+    rest_df = df[["id", "restaurant_name"]].dropna().copy()
+    rest_df["id"] = rest_df["id"].astype(str)
+    rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
+    rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
 
-# ---------------------- IMAGE SECTION ----------------------
-st.markdown("### 🖼️ Restaurant Images")
+    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
+    selected_id = selected_label.split(" - ")[0].strip()
+    selected_name = selected_label.split(" - ")[1].strip()
 
-def get_supabase_image_url(filename):
-    return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
+    st.subheader(f"🏪 {selected_name}")
 
-image_types = {
-    "front": "📸 Front Image",
-    "menu": "🍽️ Menu Image",
-    "receipt": "🧾 Receipt Image"
-}
+    # ---------------------- IMAGE SECTION ----------------------
+    st.markdown("### 🖼️ Restaurant Images")
 
-cols = st.columns(3)
-for idx, (img_type, title) in enumerate(image_types.items()):
-    with cols[idx]:
-        st.markdown(f"#### {title}")
-        filename = f"{selected_id}_{img_type}.jpg"
-        url = get_supabase_image_url(filename)
-        try:
-            response = requests.get(url)
-            if response.status_code == 200:
-                image = Image.open(BytesIO(response.content))
-                st.image(image, use_container_width=True, caption=filename)
-            else:
-                st.info("Image not available.")
-        except Exception:
-            st.info("Image load error.")
+    def get_supabase_image_url(filename):
+        return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
-# ---------------------- BASIC INFO ----------------------
-st.markdown("### 🗃️ Basic Info")
-row = df[df["id"].astype(str) == selected_id]
-if not row.empty:
-    row = row.iloc[0]
-    info_cols = ["restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
-    info_df = pd.DataFrame([[col, row[col]] for col in info_cols if col in row], columns=["Field", "Value"])
-    st.table(info_df)
-else:
-    st.warning("Restaurant not found.")
-
-# ---------------------- SURVEY INFO ----------------------
-st.markdown("### 🏢 Survey Information")
-survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
-if not survey_row.empty:
-    row = survey_row.iloc[0]
-    label_map = {
-        "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "restaurant_type": "🍱 Restaurant Type",
-        "cuisine": "🧑‍🍳 Cuisine", "number_of_customers": "🧑‍🤝‍🧑 Customers", "number_of_chairs": "🪑 Chairs",
-        "number_of_floors": "🏢 Floors", "number_of_tables": "🛎️ Tables", "seating_arrangement": "🧍‍🪑 Seating Arrangement",
-        "air_conditioner": "❄ Air Conditioning", "credit_debit_card_acceptance": "💳 Card Acceptance",
-        "food_court": "🏬 In Food Court", "gst": "💸 GST Amount", "pre_tax_price": "💰 Pre-Tax Price",
-        "post_tax_price": "💰 Post-Tax Price", "price_paid": "💸 Price Paid", "link": "🔗 Link", "contact": "📞 Contact Info"
+    image_types = {
+        "front": "📸 Front Image",
+        "menu": "🍽️ Menu Image",
+        "receipt": "🧾 Receipt Image"
     }
 
-    col1, col2 = st.columns(2)
-    for i, col in enumerate(row.index):
-        if pd.notna(row[col]) and col != "id":
-            label = label_map.get(col.lower(), col.replace("_", " ").title())
-            value = row[col]
-            (col1 if i % 2 == 0 else col2).markdown(f"""
-                <div style='
-                    background-color: #f1f5f9;
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    margin-bottom: 8px;
-                    border-left: 4px solid #2563eb;
-                '>
-                    <strong>{label}:</strong> {value}
-                </div>
-            """, unsafe_allow_html=True)
+    cols = st.columns(3)
+    for idx, (img_type, title) in enumerate(image_types.items()):
+        with cols[idx]:
+            st.markdown(f"#### {title}")
+            filename = f"{selected_id}_{img_type}.jpg"
+            url = get_supabase_image_url(filename)
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    image = Image.open(BytesIO(response.content))
+                    st.image(image, use_container_width=True, caption=filename)
+                else:
+                    st.info("Image not available.")
+            except Exception:
+                st.info("Image load error.")
 
-# ---------------------- SKIP REASON ----------------------
-# ---------------------- SKIP REASON ----------------------
-st.markdown("### 📝 Reason for Not Sending Notice")
+    # ---------------------- BASIC INFO ----------------------
+    st.markdown("### 🗃️ Basic Info")
+    row = df[df["id"].astype(str) == selected_id]
+    if not row.empty:
+        row = row.iloc[0]
+        info_cols = ["restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
+        info_df = pd.DataFrame([[col, row[col]] for col in info_cols if col in row], columns=["Field", "Value"])
+        st.table(info_df)
+    else:
+        st.warning("Restaurant not found.")
 
-# Reason Options
-reason_options = [
-    "Not Liable – turnover < 6M or not a restaurant",
-    "Already Registered on FBR",
-    "Inaccessible / Demolished",
-    "Duplicate / Error in Listing"
-]
-
-# Selection UI
-selected_reason = st.radio("Select reason for not sending notice:", reason_options, key=f"skip_{selected_id}_{user_email}")
-
-# Submission Button
-if st.button("✅ Submit Reason to Supabase"):
-    try:
-        from datetime import datetime
-        insert_payload = {
-            "restaurant_id": selected_id,
-            "officer_email": user_email,
-            "reason": selected_reason,
-            "timestamp": datetime.utcnow().isoformat()
+    # ---------------------- SURVEY INFO ----------------------
+    st.markdown("### 🏢 Survey Information")
+    survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+    if not survey_row.empty:
+        row = survey_row.iloc[0]
+        label_map = {
+            "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "restaurant_type": "🍱 Restaurant Type",
+            "cuisine": "🧑‍🍳 Cuisine", "number_of_customers": "🧑‍🤝‍🧑 Customers", "number_of_chairs": "🪑 Chairs",
+            "number_of_floors": "🏢 Floors", "number_of_tables": "🛎️ Tables", "seating_arrangement": "🧍‍🪑 Seating Arrangement",
+            "air_conditioner": "❄ Air Conditioning", "credit_debit_card_acceptance": "💳 Card Acceptance",
+            "food_court": "🏬 In Food Court", "gst": "💸 GST Amount", "pre_tax_price": "💰 Pre-Tax Price",
+            "post_tax_price": "💰 Post-Tax Price", "price_paid": "💸 Price Paid", "link": "🔗 Link", "contact": "📞 Contact Info"
         }
-        supabase.table("notice_skip_reasons").insert(insert_payload).execute()
-        st.success("✅ Reason submitted successfully!")
-        st.rerun()
-    except Exception as e:
-        st.error(f"❌ Failed to submit reason: {e}")
 
-# ---------------------- CSV EXPORT ----------------------
-st.markdown("### 📥 Export Restaurant Data as CSV")
-csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
+        col1, col2 = st.columns(2)
+        for i, col in enumerate(row.index):
+            if pd.notna(row[col]) and col != "id":
+                label = label_map.get(col.lower(), col.replace("_", " ").title())
+                value = row[col]
+                (col1 if i % 2 == 0 else col2).markdown(f"""
+                    <div style='
+                        background-color: #f1f5f9;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        margin-bottom: 8px;
+                        border-left: 4px solid #2563eb;
+                    '>
+                        <strong>{label}:</strong> {value}
+                    </div>
+                """, unsafe_allow_html=True)
 
-if officer_id:
-    if st.button("📤 Download Your Assigned Restaurants (CSV)"):
-        csv = csv_data.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
-else:
-    if st.button("📤 Download All Restaurants (CSV)"):
-        csv = csv_data.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
+    # ---------------------- SKIP REASON ----------------------
+    st.markdown("### 📝 Reason for Not Sending Notice")
+
+    # Reason Options
+    reason_options = [
+        "Not Liable – turnover < 6M or not a restaurant",
+        "Already Registered on FBR",
+        "Inaccessible / Demolished",
+        "Duplicate / Error in Listing"
+    ]
+
+    # Selection UI
+    selected_reason = st.radio("Select reason for not sending notice:", reason_options, key=f"skip_{selected_id}_{user_email}")
+
+    # Submission Button
+    if st.button("✅ Submit Reason to Supabase"):
+        try:
+            from datetime import datetime
+            insert_payload = {
+                "restaurant_id": selected_id,
+                "officer_email": user_email,
+                "reason": selected_reason,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            supabase.table("notice_skip_reasons").insert(insert_payload).execute()
+            st.success("✅ Reason submitted successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ Failed to submit reason: {e}")
+
+    # ---------------------- CSV EXPORT ----------------------
+    st.markdown("### 📥 Export Restaurant Data as CSV")
+    csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
+
+    if officer_id:
+        if st.button("📤 Download Your Assigned Restaurants (CSV)"):
+            csv = csv_data.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
+    else:
+        if st.button("📤 Download All Restaurants (CSV)"):
+            csv = csv_data.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
