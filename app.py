@@ -79,19 +79,22 @@ supabase = create_client(url, key)
 
 # --- Supabase Load ---
 @st.cache_data
-def load_table(table_name: str, columns: list = None):
+def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
     try:
-        query = supabase.table(table_name).select("*" if columns is None else ",".join(columns))
-        response = query.execute()
-        return pd.DataFrame(response.data or [])
+        offset = 0
+        all_data = []
+        while True:
+            query = supabase.table(table_name).select("*" if columns is None else ",".join(columns)).range(offset, offset + batch_size - 1)
+            response = query.execute()
+            data = response.data or []
+            all_data.extend(data)
+            if len(data) < batch_size:
+                break
+            offset += batch_size
+        return pd.DataFrame(all_data)
     except Exception as e:
         st.error(f"❌ Failed to load `{table_name}`: {e}")
         return pd.DataFrame()
-
-def clean_ids(df, cols): 
-    for col in cols:
-        df[col] = df[col].astype(str).str.strip().replace("nan", "")
-    return df.dropna(subset=cols)
 
 
 # --- Table Mapping ---
