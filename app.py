@@ -5,7 +5,7 @@ from supabase import create_client
 from datetime import datetime
 import io
 import os
-from fpdf import FPDF
+#from fpdf import FPDF
 
 # --- Page Setup ---
 st.set_page_config(page_title="PRA Restaurant Dashboard", layout="wide")
@@ -81,27 +81,6 @@ supabase = create_client(url, key)
 def load_table(table_name):
     return pd.DataFrame(supabase.table(table_name).select("*").execute().data)
 
-# --- Welcome Page ---
-if st.session_state.get("section") == "Welcome":
-    st.title("📊 PRA Restaurant Enforcement Dashboard")
-    st.markdown("Welcome to the dashboard.")
-    st.link_button("📝 Submit Compliance Update", "https://restes-dashboard-form.streamlit.app/")
-    if st.button("Enter Dashboard"):
-        st.session_state["section"] = "Current Stats / KPI"
-        st.rerun()
-    st.stop()
-
-# --- Sidebar Setup ---
-user_email = st.session_state.get("email")
-if user_email in special_access_users:
-    allowed_sections = ["Current Stats / KPI", "Restaurant Profile"]
-else:
-    allowed_sections = [
-        "Current Stats / KPI", "Data Browser", "Restaurant Profile", "Enforcement Tracking"
-    ]
-
-section = st.sidebar.radio("📁 Navigate", allowed_sections)
-
 # --- Table Mapping ---
 tables = {
     "treated_restaurant_data": "Treated Restaurants",
@@ -117,6 +96,94 @@ tables = {
 dfs = {k: load_table(k) for k in tables}
 
 
+# --- Welcome Page ---
+if st.session_state.get("section") == "Welcome":
+    st.title("📊 PRA Restaurant Enforcement Dashboard")
+    st.markdown("Welcome to the dashboard.")
+    st.link_button("📝 Submit Compliance Update", "https://restes-dashboard-form.streamlit.app/")
+    if st.button("Enter Dashboard"):
+        st.session_state["section"] = "Current Stats / KPI"
+        st.rerun()
+    st.stop()
+
+# --- Sidebar Setup ---
+user_email = st.session_state.get("email")
+if user_email in special_access_users:
+    allowed_sections = ["Current Stats / KPI", "Restaurant Profile"]
+else:
+    allowed_sections = ["Current Stats / KPI", "Data Browser", "Restaurant Profile", "Enforcement Tracking"]
+
+section = st.sidebar.radio("📁 Navigate", allowed_sections)
+
+# ---------------------- Current Stats / KPI ----------------------
+if section == "Current Stats / KPI":
+    st.title("📊 PRA System Status")
+
+    treated_df = dfs["treated_restaurant_data"]
+    tracking_df = dfs.get("enforcement_tracking", pd.DataFrame())
+    followup_df = dfs.get("notice_followup_tracking", pd.DataFrame())
+    user_email = st.session_state.get("email", "")
+
+    officer_ids = {
+        "Haali1@live.com": "3",
+        "Kamranpra@gmail.com": "2",
+        "Saudatiq90@gmail.com": "1"
+    }
+    officer_id = officer_ids.get(user_email)
+
+    if officer_id:  # Special Officer View
+        st.subheader(f"👮 Restaurants Assigned to Officer {officer_id}")
+        df_filtered = treated_df[treated_df["officer_id"].astype(str) == officer_id]
+
+        st.metric("📘 Total Assigned Restaurants", len(df_filtered))
+        st.dataframe(df_filtered[["id", "restaurant_name", "restaurant_address"]])
+
+        if not tracking_df.empty:
+            tracking_df = tracking_df[tracking_df["restaurant_id"].isin(df_filtered["id"])]
+            st.markdown("### 📦 Enforcement Tracking Records")
+            st.dataframe(tracking_df[[
+                "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
+            ]])
+
+    else:  # Full View for PI/Admins
+        st.markdown("## 📋 Notice Follow-up & Latest Updates")
+
+        if not followup_df.empty:
+            treated_df["id"] = treated_df["id"].astype(str)
+            followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
+
+            merged = pd.merge(
+                followup_df,
+                treated_df[["id", "officer_id"]],
+                left_on="restaurant_id", right_on="id", how="left"
+            ).fillna("")
+
+            for oid in sorted(merged["officer_id"].dropna().unique()):
+                off_df = merged[merged["officer_id"] == oid]
+                returned = (off_df["delivery_status"].str.lower() == "returned").sum()
+                corrected_names = (off_df["correct_name"].str.strip() != "").sum()
+                corrected_address = (off_df["correct_address"].str.strip() != "").sum()
+
+                with st.expander(f"🕵️ Officer {oid} — Notices Returned: {returned}"):
+                    col1, col2 = st.columns(2)
+                    col1.metric("📬 Notices Returned", returned)
+                    col2.metric("📛 Corrected Names", corrected_names)
+
+                    resend_df = off_df[
+                        (off_df["delivery_status"].str.lower() == "returned") &
+                        (
+                            (off_df["correct_name"].fillna("").str.strip() != "") |
+                            (off_df["correct_address"].fillna("").str.strip() != "")
+                        )
+                    ]
+                    total_resends = len(resend_df)
+                    st.markdown(f"### 📨 Total Notices to Re-send: `{total_resends}`")
+                    if not resend_df.empty:
+                        st.dataframe(resend_df[[
+                            "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
+                        ]].reset_index(drop=True))
+                    else:
+                        st.info("No returned notices for this officer.")
 
 #------------------------------------------------------------------------------------------------------------------
 
@@ -140,8 +207,6 @@ elif section == "Restaurant Profile":
         st.info(f"Showing restaurants for Officer {officer_id}")
     else:
         st.success("Showing all restaurants")
-
-
 
     # Filtering
     registered_df = df[df.get("compliance_status") == "Registered"]
@@ -272,18 +337,16 @@ elif section == "Restaurant Profile":
 
 
     # CSV Export
-st.markdown("### 📥 Export Restaurant Data as CSV")
+    st.markdown("### 📥 Export Restaurant Data as CSV")
 
-# Join treated + survey for full export
-csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
+    # Join treated + survey for full export
+    csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
 
-if officer_id:  # Officer login - only his assigned restaurants
-    if st.button("📤 Download Your Assigned Restaurants (CSV)"):
-        csv = csv_data.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
-else:  # Full access user
-    if st.button("📤 Download All Restaurants (CSV)"):
-        csv = csv_data.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
-
-
+    if officer_id:  # Officer login - only his assigned restaurants
+        if st.button("📤 Download Your Assigned Restaurants (CSV)"):
+            csv = csv_data.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
+    else:  # Full access user
+        if st.button("📤 Download All Restaurants (CSV)"):
+            csv = csv_data.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
