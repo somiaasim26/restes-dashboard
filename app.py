@@ -118,55 +118,60 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 # ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
-    st.title("📊 PRA System Status")
+   
+    # Load data from Supabase
+    treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("*").execute().data)
+    followup_df = pd.DataFrame(supabase.table("notice_followup_tracking").select("*").execute().data)
 
-    treated_df = dfs["treated_restaurant_data"]
-    followup_df = dfs["notice_followup_tracking"]
-    user_email = st.session_state.get("email", "")
-
-    # Officer Mapping
+    # Officer Email → ID map
     officer_ids = {
         "Haali1@live.com": "3",
         "Kamranpra@gmail.com": "2",
         "Saudatiq90@gmail.com": "1"
     }
+    st.title("📊 PRA System Status")
+    user_email = st.session_state.get("email", "")
+    user_id = officer_ids.get(user_email)
 
-    officer_id = officer_ids.get(user_email)
+    # PI / Full View
+    st.subheader("📋 Notice Follow-up & Latest Updates")
 
-    # Ensure string matching
-    treated_df["officer_id"] = treated_df["officer_id"].astype(str)
-    treated_df["id"] = treated_df["id"].astype(str)
-    followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
+    if not treated_df.empty and not followup_df.empty:
+        treated_df["id"] = treated_df["id"].astype(str)
+        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
 
-    # PI/Admin Full View
-    st.markdown("## 📋 Notice Follow-up & Latest Updates")
+        merged_df = pd.merge(
+            followup_df, treated_df[["id", "officer_id"]],
+            left_on="restaurant_id", right_on="id", how="left"
+        )
 
-    for email, oid in officer_ids.items():
-        assigned = treated_df[treated_df["officer_id"] == oid]
-        assigned_ids = assigned["id"].tolist()
-        followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)]
+        for email, oid in officer_ids.items():
+            assigned = treated_df[treated_df["officer_id"] == oid]
+            assigned_ids = set(assigned["id"].astype(str))
 
-        returned_count = followups["delivery_status"].str.lower().eq("returned").sum()
-        delivered_count = followups["delivery_status"].str.lower().eq("delivered").sum()
+            returned = merged_df[
+                (merged_df["officer_id"] == oid) &
+                (merged_df["delivery_status"].str.lower() == "returned")
+            ]
+            to_resend = returned[
+                (returned["correct_address"].fillna("").str.strip() != "") |
+                (returned["correct_name"].fillna("").str.strip() != "")
+            ]
 
-        to_resend = followups[
-            (followups["delivery_status"].str.lower() == "returned") &
-            (
-                followups["correct_address"].fillna("").str.strip() != "" |
-                followups["correct_name"].fillna("").str.strip() != ""
-            )
-        ]
+            with st.expander(f"👮 Officer ID: {email} — Assigned Restaurants: {len(assigned)}"):
+                st.markdown(f"📦 **Returned Notices:** `{len(returned)}`")
+                st.markdown(f"📤 **Notices to Re-send:** `{len(to_resend)}`")
 
-        with st.expander(f"👮 Officer ID: {email} — Assigned Restaurants: {len(assigned)}"):
-            st.markdown(f"<div style='padding-left:1rem'>📭 <b>Returned Notices:</b> <span style='color:#b91c1c'>{returned_count}</span></div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='padding-left:1rem'>✅ <b>Delivered Notices:</b> <span style='color:#16a34a'>{delivered_count}</span></div>", unsafe_allow_html=True)
-            st.markdown(f"<div style='padding-left:1rem'>📦 <b>To Resend:</b> <span style='color:#d97706'>{len(to_resend)}</span></div>", unsafe_allow_html=True)
+                st.markdown("### 🔁 Re-send Targets (Corrected Info + Returned)")
+                if not to_resend.empty:
+                    st.dataframe(to_resend[[
+                        "restaurant_id", "delivery_status", "correct_address", "correct_name"
+                    ]])
+                else:
+                    st.info("No resends required.")
 
-            preview_df = assigned[["id", "restaurant_name", "restaurant_address"]].head(10)
-            st.dataframe(preview_df)
-
-            if st.button(f"🔍 Load All Restaurants — Officer {oid}", key=f"load_all_{oid}"):
-                st.dataframe(assigned[["id", "restaurant_name", "restaurant_address"]])
+    else:
+        st.warning("Data not loaded from Supabase.")
 
 #------------------------------------------------------------------------------------------------------------------
 
