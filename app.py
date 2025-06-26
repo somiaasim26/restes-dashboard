@@ -408,32 +408,46 @@ elif section == "Restaurant Profile":
     # ---------------------- SKIP REASON ----------------------
     st.markdown("### 📝 Reason for Not Sending Notice")
 
-    # Reason Options
+    # Define reason options
     reason_options = [
-        "Not Liable – turnover < 6M or not a restaurant",
-        "Already Registered on FBR",
-        "Inaccessible / Demolished",
-        "Duplicate / Error in Listing"
+        "Not Liable – turnover < 6M",
+        "Not a Restaurant – Retail or Non-Food",
+        "Already Registered with PRA",
+        "Closed / Inactive Business",
+        "Outside PRA Jurisdiction"
     ]
 
-    # Selection UI
-    selected_reason = st.radio("Select reason for not sending notice:", reason_options, key=f"skip_{selected_id}_{user_email}")
+    # UI for selection
+    selected_reason = st.radio("Select reason for not sending notice:", reason_options, key=f"reason_radio_{selected_id}_{user_email}")
 
-    # Submission Button
+    # Conditional NTN field
+    ntn_input = None
+    if selected_reason == "Already Registered with PRA":
+        ntn_input = st.text_input("Enter NTN (if known):", placeholder="e.g. 1234567")
+
+    # Submit button
     if st.button("✅ Submit Reason to Supabase"):
         try:
             from datetime import datetime
-            insert_payload = {
+
+            payload = {
                 "restaurant_id": selected_id,
                 "officer_email": user_email,
                 "reason": selected_reason,
                 "timestamp": datetime.utcnow().isoformat()
             }
-            supabase.table("notice_skip_reasons").insert(insert_payload).execute()
+
+            # Add NTN only if applicable
+            if selected_reason == "Already Registered with PRA" and ntn_input:
+                payload["NTN"] = ntn_input
+
+            supabase.table("notice_skip_reasons").insert(payload).execute()
             st.success("✅ Reason submitted successfully!")
             st.rerun()
+
         except Exception as e:
             st.error(f"❌ Failed to submit reason: {e}")
+
 
     # ---------------------- CSV EXPORT ----------------------
     st.markdown("### 📥 Export Restaurant Data as CSV")
