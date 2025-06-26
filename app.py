@@ -310,18 +310,33 @@ elif section == "Restaurant Profile":
                     </div>
                 """, unsafe_allow_html=True)
 
-    # Officer Comments
+
+        # --- Officer Comments Section ---
     st.markdown("### 📝 Reason for Not Sending Notice")
 
-    existing_skip = dfs["notice_skip_reasons"]
-    skip_entry = existing_skip[
-        (existing_skip["restaurant_id"].astype(str) == selected_id) &
-        (existing_skip["officer_email"] == user_email)
-    ]
+    # Safely pull skip reasons from Supabase
+    try:
+        skip_reason_df = pd.DataFrame(
+            supabase.table("notice_skip_reasons").select("*").execute().data
+        )
+    except Exception as e:
+        skip_reason_df = pd.DataFrame()
+        st.warning(f"⚠️ Unable to load previous skip reasons: {e}")
 
-    if not skip_entry.empty:
-        st.success(f"Already submitted: {skip_entry.iloc[0]['reason']}")
-    else:
+    # Filter based on selected restaurant + logged-in officer
+    already_submitted = False
+    if not skip_reason_df.empty and "restaurant_id" in skip_reason_df.columns:
+        skip_reason_df["restaurant_id"] = skip_reason_df["restaurant_id"].astype(str)
+        submitted = skip_reason_df[
+            (skip_reason_df["restaurant_id"] == selected_id) &
+            (skip_reason_df["officer_email"] == user_email)
+        ]
+        if not submitted.empty:
+            st.success(f"✅ Already submitted: {submitted.iloc[0]['reason']}")
+            already_submitted = True
+
+    # Display form if not already submitted
+    if not already_submitted:
         reason = st.radio("Select reason:", [
             "Not Liable – turnover < 6M or not a restaurant",
             "Already Registered on FBR",
@@ -330,16 +345,18 @@ elif section == "Restaurant Profile":
         ])
 
         if st.button("✅ Submit Reason"):
-            from datetime import datetime
-            supabase.table("notice_skip_reasons").insert({
-                "restaurant_id": selected_id,
-                "officer_email": user_email,
-                "reason": reason,
-                "timestamp": datetime.utcnow().isoformat()
-            }).execute()
-            st.success("Reason submitted.")
-            st.rerun()
-
+            try:
+                from datetime import datetime
+                supabase.table("notice_skip_reasons").insert({
+                    "restaurant_id": selected_id,
+                    "officer_email": user_email,
+                    "reason": reason,
+                    "timestamp": datetime.utcnow().isoformat()
+                }).execute()
+                st.success("Reason submitted.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Submission failed: {e}")
 
 
     # CSV Export
