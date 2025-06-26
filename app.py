@@ -167,7 +167,7 @@ if section == "Current Stats / KPI":
 
 #------------------------------------------------------------------------------------------------------------------
 
-# ✅ Updated Restaurant Profile Section (Supabase-based, optimized)
+# ✅ Updated Restaurant Profile Section
 
 elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
@@ -218,59 +218,41 @@ elif section == "Restaurant Profile":
 
     st.subheader(f"🏪 {selected_name}")
 
-
    # -------------------- Restaurant Images (by filename logic) --------------------
 import requests
 from PIL import Image
 from io import BytesIO
 
-st.markdown("### 🖼️ Restaurant Images")
-
 # Helper to build public Supabase image URL
 def get_supabase_image_url(filename):
     return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
-# Types and Labels
+# Image Display (3 types in columns)
+st.markdown("### 🖼️ Restaurant Images")
 image_types = {
     "front": "📸 Front Images",
     "menu": "🍽️ Menu Images",
     "receipt": "🧾 Receipt Images"
 }
 
-# Display in 3 columns
-col_front, col_menu, col_receipt = st.columns(3)
-columns = {
-    "front": col_front,
-    "menu": col_menu,
-    "receipt": col_receipt
-}
-
-# Loop through types
-for img_type in image_types:
-    with columns[img_type]:
-        st.markdown(f"#### {image_types[img_type]}")
+cols = st.columns(3)
+for idx, (img_type, title) in enumerate(image_types.items()):
+    with cols[idx]:
+        st.markdown(f"#### {title}")
         found = False
-
-        for i in range(5):  # Check up to 5 images
-            if i == 0:
-                filename = f"{selected_id}_{img_type}.jpg"
-            else:
-                filename = f"{selected_id}_{img_type}_{i}.jpg"
-
+        for i in range(5):  # preload first 5 images for each type
+            filename = f"{selected_id}_{img_type}.jpg" if i == 0 else f"{selected_id}_{img_type}_{i}.jpg"
             url = get_supabase_image_url(filename)
-
             try:
                 response = requests.get(url)
                 if response.status_code == 200:
                     image = Image.open(BytesIO(response.content))
-                    st.image(image, use_column_width="always", caption=filename)
+                    st.image(image, use_container_width=True, caption=filename)
                     found = True
-            except Exception as e:
+            except Exception:
                 continue
-
         if not found:
-            st.info(f"No {img_type.capitalize()} image found.")
-
+            st.info(f"No {img_type} images found.")
 
 
     # -------------------- Basic Info --------------------
@@ -344,13 +326,14 @@ for img_type in image_types:
     # Display form if not already submitted
     if not already_submitted:
         reason = st.radio("Select reason:", [
-            "Not Liable – Turnover < PKR 6M",
-            "Not a Restaurant – Retail or Non-Food",
-            "Already Registered with PRA",
-            "Duplicate Entry / Already Covered",
-            "Closed / Inactive Business",
-            "Outside PRA Jurisdiction"
-        ])
+        "Not Liable – Turnover < PKR 6M",
+        "Not a Restaurant – Retail or Non-Food",
+        "Already Registered with PRA",
+        "Duplicate Entry / Already Covered",
+        "Closed / Inactive Business",
+        "Outside PRA Jurisdiction"
+    ], key=f"reason_radio_{selected_id}_{user_email}")
+
 
         if st.button("✅ Submit Reason"):
             try:
