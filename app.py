@@ -178,10 +178,15 @@ if section == "Current Stats / KPI":
         returned = officer_followups[officer_followups["delivery_status"].str.lower() == "returned"].copy()
 
         # Must have either corrected name or corrected address
+        # Resend-worthy: must have either a non-empty correct name or correct address (not just 'None' or blank)
         resend_df = returned[
-            (returned["correct_name"].str.strip() != "") |
-            (returned["correct_address"].str.strip() != "")
+            (returned["correct_name"].fillna("").str.strip().str.lower() != "") &
+            (returned["correct_name"].fillna("").str.strip().str.lower() != "none")
+            |
+            (returned["correct_address"].fillna("").str.strip().str.lower() != "") &
+            (returned["correct_address"].fillna("").str.strip().str.lower() != "none")
         ]
+
 
         st.markdown("---")
         with st.expander(f"🧑 Officer ID: {oid} — Assigned: {total_restaurants}, Returned: {len(returned)}, Re-send: {len(resend_df)}", expanded=False):
