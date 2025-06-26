@@ -243,6 +243,48 @@ if section == "Current Stats / KPI":
         except Exception as e:
             st.error(f"❌ Could not load summary: {e}")
 
+    # --- Filing Status Summary (Compact View) ---
+            st.markdown("## 🧾 Formality Change All Restaurants")
+
+            try:
+                followup_df = dfs["notice_followup_tracking"]
+                treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+
+                followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+                treated_df["id"] = treated_df["id"].astype(str).str.strip()
+
+                combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+                combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
+                changed = combined[combined["changed"]].copy()
+
+                total_changed = len(changed)
+                st.markdown(f"### 🧾 Restaurants With Status Changes: <span style='background:#dcfce7;padding:5px 10px;border-radius:5px;font-weight:bold;'>{total_changed}</span>", unsafe_allow_html=True)
+
+                restaurant_labels = changed.apply(lambda row: f"{row['restaurant_name']} ({row['id']})", axis=1).tolist()
+                selected_label = st.selectbox("🔍 Select a Restaurant", restaurant_labels)
+
+                selected_id = selected_label.split("(")[-1].replace(")", "").strip()
+                row = changed[changed["id"] == selected_id].iloc[0]
+
+                st.markdown(f"""
+                <div style='
+                    border:1px solid #ddd;
+                    padding:10px;
+                    margin-top:10px;
+                    border-radius:6px;
+                    background-color:#f9f9f9;
+                '>
+                    <b>🏪 {row['restaurant_name']}</b> <br>
+                    📍 <i>{row['restaurant_address']}</i> <br>
+                    🆔 ID: <code>{row['id']}</code> <br><br>
+                    <b>Previous Status:</b> <span style='color:#d97706;'>{row['compliance_status']}</span><br>
+                    <b>Latest Status:</b> <span style='color:#16a34a;'>{row['latest_formality_status']}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            except Exception as e:
+                st.error(f"❌ Could not load compact summary: {e}")
+
 #------------------------------------------------------------------------------------------------------------------
 
 #------ Data Browser ----
