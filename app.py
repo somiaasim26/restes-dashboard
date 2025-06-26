@@ -121,75 +121,52 @@ if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
     treated_df = dfs["treated_restaurant_data"]
-    tracking_df = dfs.get("enforcement_tracking", pd.DataFrame())
-    followup_df = dfs.get("notice_followup_tracking", pd.DataFrame())
+    followup_df = dfs["notice_followup_tracking"]
     user_email = st.session_state.get("email", "")
 
+    # Officer Mapping
     officer_ids = {
         "Haali1@live.com": "3",
         "Kamranpra@gmail.com": "2",
         "Saudatiq90@gmail.com": "1"
     }
+
     officer_id = officer_ids.get(user_email)
 
-    # Officer View
-    if officer_id:
-        st.subheader(f"👮 Restaurants Assigned to Officer {officer_id}")
-        df_filtered = treated_df[treated_df["officer_id"].astype(str) == officer_id]
+    # Ensure string matching
+    treated_df["officer_id"] = treated_df["officer_id"].astype(str)
+    treated_df["id"] = treated_df["id"].astype(str)
+    followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
 
-        st.metric("📘 Total Assigned Restaurants", len(df_filtered))
-        st.dataframe(df_filtered[["id", "restaurant_name", "restaurant_address"]])
+    # PI/Admin Full View
+    st.markdown("## 📋 Notice Follow-up & Latest Updates")
 
-        if not tracking_df.empty:
-            filtered_tracking = tracking_df[tracking_df["restaurant_id"].isin(df_filtered["id"])]
-            st.markdown("### 📦 Enforcement Tracking Records")
-            st.dataframe(filtered_tracking[[  # Top 10
-                "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-            ]].head(10))
+    for email, oid in officer_ids.items():
+        assigned = treated_df[treated_df["officer_id"] == oid]
+        assigned_ids = assigned["id"].tolist()
+        followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)]
 
-            if st.button("🔍 Load All Tracking"):
-                st.dataframe(filtered_tracking)
+        returned_count = followups["delivery_status"].str.lower().eq("returned").sum()
+        delivered_count = followups["delivery_status"].str.lower().eq("delivered").sum()
 
-    # Admin View
-    else:
-        st.markdown("## 📋 Notice Follow-up & Latest Updates")
+        to_resend = followups[
+            (followups["delivery_status"].str.lower() == "returned") &
+            (
+                followups["correct_address"].fillna("").str.strip() != "" |
+                followups["correct_name"].fillna("").str.strip() != ""
+            )
+        ]
 
-        if not followup_df.empty:
-            followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
-            treated_df["id"] = treated_df["id"].astype(str)
+        with st.expander(f"👮 Officer ID: {email} — Assigned Restaurants: {len(assigned)}"):
+            st.markdown(f"<div style='padding-left:1rem'>📭 <b>Returned Notices:</b> <span style='color:#b91c1c'>{returned_count}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='padding-left:1rem'>✅ <b>Delivered Notices:</b> <span style='color:#16a34a'>{delivered_count}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='padding-left:1rem'>📦 <b>To Resend:</b> <span style='color:#d97706'>{len(to_resend)}</span></div>", unsafe_allow_html=True)
 
-            merged = pd.merge(
-                followup_df,
-                treated_df[["id", "officer_id"]],
-                left_on="restaurant_id", right_on="id", how="left"
-            ).fillna("")
+            preview_df = assigned[["id", "restaurant_name", "restaurant_address"]].head(10)
+            st.dataframe(preview_df)
 
-            for email, oid in officer_ids.items():
-                officer_df = treated_df[treated_df["officer_id"] == oid]
-                assigned_count = len(officer_df)
-
-                with st.expander(f"👮 Officer ID: {email} — Assigned Restaurants: {assigned_count}"):
-                    st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]].head(10))
-                    if st.button(f"📄 Show More Assigned to Officer {oid}", key=f"btn_more_{oid}"):
-                        st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]])
-
-                if not tracking_df.empty:
-                    officer_tracking = tracking_df[tracking_df["restaurant_id"].isin(officer_df["id"])]
-
-                    with st.expander(f"📦 Enforcement Tracking — Officer {oid}"):
-                        st.write(f"Total Records: {len(officer_tracking)}")
-                        st.dataframe(officer_tracking[[  # Display top 10
-                            "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-                        ]].head(10))
-
-                        if st.button(f"🔍 Load All Tracking — Officer {oid}", key=f"btn_tracking_{oid}"):
-                            st.dataframe(officer_tracking)
-
-                returned = merged[
-                    (merged["officer_id"] == oid) &
-                    (merged["delivery_status"].str.lower() == "returned")
-                ]
-                st.markdown(f"📬 **Returned Notices:** `{len(returned)}`")
+            if st.button(f"🔍 Load All Restaurants — Officer {oid}", key=f"load_all_{oid}"):
+                st.dataframe(assigned[["id", "restaurant_name", "restaurant_address"]])
 
 #------------------------------------------------------------------------------------------------------------------
 
@@ -338,10 +315,12 @@ elif section == "Restaurant Profile":
     # Display form if not already submitted
     if not already_submitted:
         reason = st.radio("Select reason:", [
-            "Not Liable – turnover < 6M or not a restaurant",
-            "Already Registered on FBR",
-            "Inaccessible / Demolished",
-            "Duplicate / Error in Listing"
+            "Not Liable – Turnover < PKR 6M",
+            "Not a Restaurant – Retail or Non-Food",
+            "Already Registered with PRA",
+            "Duplicate Entry / Already Covered",
+            "Closed / Inactive Business",
+            "Outside PRA Jurisdiction"
         ])
 
         if st.button("✅ Submit Reason"):
