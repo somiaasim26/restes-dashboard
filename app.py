@@ -130,47 +130,6 @@ else:
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
-# ---------------------- Current Stats / KPI ----------------------
-# Load the 2 tables you are actually using
-treated_df = load_table("treated_restaurant_data", columns=[
-    "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
-])
-followup_df = load_table("notice_followup_tracking", columns=[
-    "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
-])
-
-# Clean IDs
-def clean_ids(df, cols): 
-    for col in cols:
-        df[col] = df[col].astype(str).str.strip().replace("nan", "")
-    return df.dropna(subset=cols)
-
-treated_df = clean_ids(treated_df, ["id", "officer_id"])
-followup_df = clean_ids(followup_df, ["restaurant_id"])
-
-# Merge
-merged = followup_df.merge(treated_df[["id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
-                           left_on="restaurant_id", right_on="id", how="left")
-
-# Show total
-st.subheader("📘 Total Restaurants With Follow-up")
-st.metric("Total", len(merged))
-
-# Show officer breakdown
-officer_ids = sorted(merged["officer_id"].dropna().unique())
-for oid in officer_ids:
-    off_df = merged[merged["officer_id"] == oid]
-    returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-    corrected = ((off_df["correct_name"].str.strip() != "") | (off_df["correct_address"].str.strip() != "")).sum()
-    
-    with st.expander(f"👮 Officer {oid} — {len(off_df)} entries — {returned} returned"):
-        st.metric("📬 Returned", returned)
-        st.metric("🛠️ Corrected Info", corrected)
-        st.dataframe(off_df[[
-            "restaurant_id", "restaurant_name", "delivery_status", 
-            "correct_address", "correct_name", "latest_formality_status"
-        ]].reset_index(drop=True))
-
 # --- Inside the KPI section ---
 if section == "Current Stats / KPI":
     is_special_user = user_email in special_access_users
@@ -220,65 +179,64 @@ if section == "Current Stats / KPI":
 
 # ✅ Updated Restaurant Profile Section
 
-elif section == "Restaurant Profile":
-    st.title("📋 Restaurant Summary Profile")
-
-    df = dfs["treated_restaurant_data"]
-    survey_df = dfs["surveydata_treatmentgroup"]
-    officer_ids = {
-        "Haali1@live.com": "3",
-        "Kamranpra@gmail.com": "2",
-        "Saudatiq90@gmail.com": "1"
-    }
-    officer_id = officer_ids.get(user_email)
-
-    if officer_id:
-        df = df[df["officer_id"] == officer_id]
-        st.info(f"Showing restaurants for Officer {officer_id}")
-    else:
-        st.success("Showing all restaurants")
-
-    # Filtering
-    registered_df = df[df.get("compliance_status") == "Registered"]
-    unregistered_df = df[df.get("compliance_status") != "Registered"]
-    filers_df = df[df.get("ntn").notna() & (df.get("ntn").astype(str).str.strip() != "")]
-
-    # Compliance Summary Buttons
-    st.markdown("### 📊 Monthly Compliance Summary")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button(f"✅ Registered ({len(registered_df)})"):
-            st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
-    with col2:
-        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-            st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
-    with col3:
-        if st.button(f"🧾 Filers ({len(filers_df)})"):
-            st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
-
-    # Dropdown
-    rest_df = df[["id", "restaurant_name"]].dropna(subset=["id"]).copy()
-    rest_df["id"] = rest_df["id"].astype(str)
-    rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
-    rest_df = rest_df.sort_values(by="id", key=lambda x: x.str.zfill(10))
-
-    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
-    selected_id = selected_label.split(" - ")[0].strip()
-    selected_name = selected_label.split(" - ")[1].strip()
-
-    st.subheader(f"🏪 {selected_name}")
-
-    # -------------------- Restaurant Images --------------------
 import requests
 from PIL import Image
 from io import BytesIO
 
-# Helper to build public Supabase image URL
+# ---------------------- Restaurant Profile Header ----------------------
+st.title("📋 Restaurant Summary Profile")
+
+df = dfs["treated_restaurant_data"]
+survey_df = dfs["surveydata_treatmentgroup"]
+officer_ids = {
+    "Haali1@live.com": "3",
+    "Kamranpra@gmail.com": "2",
+    "Saudatiq90@gmail.com": "1"
+}
+officer_id = officer_ids.get(user_email)
+
+# Filter for officer
+if officer_id:
+    df = df[df["officer_id"] == officer_id]
+    st.info(f"Showing restaurants for Officer {officer_id}")
+else:
+    st.success("Showing all restaurants")
+
+# --- Compliance Summary Buttons ---
+registered_df = df[df["compliance_status"] == "Registered"]
+unregistered_df = df[df["compliance_status"] != "Registered"]
+filers_df = df[df["ntn"].notna() & (df["ntn"].astype(str).str.strip() != "")]
+
+st.markdown("### 📊 Monthly Compliance Summary")
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button(f"✅ Registered ({len(registered_df)})"):
+        st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
+with col2:
+    if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
+        st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
+with col3:
+    if st.button(f"🧾 Filers ({len(filers_df)})"):
+        st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
+
+# --- Restaurant Selector ---
+rest_df = df[["id", "restaurant_name"]].dropna().copy()
+rest_df["id"] = rest_df["id"].astype(str)
+rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
+rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
+
+selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
+selected_id = selected_label.split(" - ")[0].strip()
+selected_name = selected_label.split(" - ")[1].strip()
+
+st.subheader(f"🏪 {selected_name}")
+
+# ---------------------- IMAGE SECTION ----------------------
+st.markdown("### 🖼️ Restaurant Images")
+
 def get_supabase_image_url(filename):
     return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
-# Image Display Section
-st.markdown("### 🖼️ Restaurant Images")
 image_types = {
     "front": "📸 Front Image",
     "menu": "🍽️ Menu Image",
@@ -288,106 +246,104 @@ image_types = {
 cols = st.columns(3)
 for idx, (img_type, title) in enumerate(image_types.items()):
     with cols[idx]:
-        st.markdown(f"**{title}**")
-        image_found = False
+        st.markdown(f"#### {title}")
+        filename = f"{selected_id}_{img_type}.jpg"
+        url = get_supabase_image_url(filename)
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                image = Image.open(BytesIO(response.content))
+                st.image(image, use_container_width=True, caption=filename)
+            else:
+                st.info("Image not available.")
+        except Exception:
+            st.info("Image load error.")
 
-        # Try to preload up to 5 versions, but show only the first that works
-        for i in range(5):
-            filename = f"{selected_id}_{img_type}.jpg" if i == 0 else f"{selected_id}_{img_type}_{i}.jpg"
-            url = get_supabase_image_url(filename)
+# ---------------------- BASIC INFO ----------------------
+st.markdown("### 🗃️ Basic Info")
+row = df[df["id"].astype(str) == selected_id]
+if not row.empty:
+    row = row.iloc[0]
+    info_cols = ["restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
+    info_df = pd.DataFrame([[col, row[col]] for col in info_cols if col in row], columns=["Field", "Value"])
+    st.table(info_df)
+else:
+    st.warning("Restaurant not found.")
 
-            try:
-                response = requests.get(url)
-                if response.status_code == 200:
-                    image = Image.open(BytesIO(response.content))
-                    st.image(image, caption=filename, use_container_width=True)
-                    image_found = True
-                    break  # ✅ Show only the first valid image
-            except Exception:
-                continue
+# ---------------------- SURVEY INFO ----------------------
+st.markdown("### 🏢 Survey Information")
+survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
+if not survey_row.empty:
+    row = survey_row.iloc[0]
+    label_map = {
+        "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "restaurant_type": "🍱 Restaurant Type",
+        "cuisine": "🧑‍🍳 Cuisine", "number_of_customers": "🧑‍🤝‍🧑 Customers", "number_of_chairs": "🪑 Chairs",
+        "number_of_floors": "🏢 Floors", "number_of_tables": "🛎️ Tables", "seating_arrangement": "🧍‍🪑 Seating Arrangement",
+        "air_conditioner": "❄ Air Conditioning", "credit_debit_card_acceptance": "💳 Card Acceptance",
+        "food_court": "🏬 In Food Court", "gst": "💸 GST Amount", "pre_tax_price": "💰 Pre-Tax Price",
+        "post_tax_price": "💰 Post-Tax Price", "price_paid": "💸 Price Paid", "link": "🔗 Link", "contact": "📞 Contact Info"
+    }
 
-        if not image_found:
-            st.info(f"No {img_type} image found.")
+    col1, col2 = st.columns(2)
+    for i, col in enumerate(row.index):
+        if pd.notna(row[col]) and col != "id":
+            label = label_map.get(col.lower(), col.replace("_", " ").title())
+            value = row[col]
+            (col1 if i % 2 == 0 else col2).markdown(f"""
+                <div style='
+                    background-color: #f1f5f9;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                    border-left: 4px solid #2563eb;
+                '>
+                    <strong>{label}:</strong> {value}
+                </div>
+            """, unsafe_allow_html=True)
 
-    # -------------------- Basic Info --------------------
-    st.markdown("### 🗃️ Basic Info")
-    row = df[df["id"].astype(str) == selected_id]
-    if not row.empty:
-        row = row.iloc[0]
-        info_cols = ["restaurant_name", "restaurant_address", "compliance_status", "officer_id", "ntn", "latitude", "longitude"]
-        info_df = pd.DataFrame([[col, row[col]] for col in info_cols if col in row], columns=["Field", "Value"])
-        st.table(info_df)
+# ---------------------- SKIP REASON ----------------------
+st.markdown("### 📝 Reason for Not Sending Notice")
+try:
+    existing_skip = dfs.get("notice_skip_reasons", pd.DataFrame())
+    if not existing_skip.empty and "restaurant_id" in existing_skip.columns:
+        skip_entry = existing_skip[
+            (existing_skip["restaurant_id"].astype(str) == selected_id) &
+            (existing_skip["officer_email"] == user_email)
+        ]
+        if not skip_entry.empty:
+            st.success(f"✅ Already submitted: {skip_entry.iloc[0]['reason']}")
+        else:
+            reason = st.radio("Select reason:", [
+                "Not Liable – turnover < 6M or not a restaurant",
+                "Already Registered on FBR",
+                "Inaccessible / Demolished",
+                "Duplicate / Error in Listing"
+            ], key=f"reason_radio_{selected_id}_{user_email}")
 
-    # -------------------- Survey Info --------------------
-    st.markdown("### 🏢 Survey Information")
-    survey_row = survey_df[survey_df["id"].astype(str) == selected_id]
-    if not survey_row.empty:
-        row = survey_row.iloc[0]
-        label_map = {
-            "ntn": "🔘 NTN", "pntn": "🔘 PNTN", "strn": "🔘 STRN", "restaurant_type": "🍱 Restaurant Type",
-            "cuisine": "🧑‍🍳 Cuisine", "number_of_customers": "🧑‍🤝‍🧑 Customers", "number_of_chairs": "🪑 Chairs",
-            "number_of_floors": "🏢 Floors", "number_of_tables": "🛎️ Tables", "seating_arrangement": "🧍‍🪑 Seating Arrangement",
-            "air_conditioner": "❄ Air Conditioning", "credit_debit_card_acceptance": "💳 Card Acceptance",
-            "food_court": "🏬 In Food Court", "gst": "💸 GST Amount", "pre_tax_price": "💰 Pre-Tax Price",
-            "post_tax_price": "💰 Post-Tax Price", "price_paid": "💸 Price Paid"
-        }
-
-        col1, col2 = st.columns(2)
-        for i, col in enumerate(row.index):
-            if pd.notna(row[col]) and col != "id":
-                label = label_map.get(col.lower(), col.replace("_", " ").title())
-                value = row[col]
-                (col1 if i % 2 == 0 else col2).markdown(f"""
-                    <div style='
-                        background-color: #f1f5f9;
-                        padding: 8px 12px;
-                        border-radius: 6px;
-                        margin-bottom: 8px;
-                        border-left: 4px solid #2563eb;
-                    '>
-                        <strong>{label}:</strong> {value}
-                    </div>
-                """, unsafe_allow_html=True)
-
-    # -------------------- Skip Reason Section --------------------
-    st.markdown("### 📝 Reason for Not Sending Notice")
-
-    existing_skip = dfs["notice_skip_reasons"]
-    skip_entry = existing_skip[
-        (existing_skip["restaurant_id"].astype(str) == selected_id) &
-        (existing_skip["officer_email"] == user_email)
-    ]
-
-    if not skip_entry.empty:
-        st.success(f"Already submitted: {skip_entry.iloc[0]['reason']}")
+            if st.button("✅ Submit Reason"):
+                from datetime import datetime
+                supabase.table("notice_skip_reasons").insert({
+                    "restaurant_id": selected_id,
+                    "officer_email": user_email,
+                    "reason": reason,
+                    "timestamp": datetime.utcnow().isoformat()
+                }).execute()
+                st.success("Reason submitted.")
+                st.rerun()
     else:
-        reason = st.radio("Select reason:", [
-            "Not Liable – turnover < 6M or not a restaurant",
-            "Already Registered on FBR",
-            "Inaccessible / Demolished",
-            "Duplicate / Error in Listing"
-        ])
+        st.warning("⚠️ No skip reason data loaded.")
+except Exception as e:
+    st.error(f"❌ Skip reason failed: {e}")
 
-        if st.button("✅ Submit Reason"):
-            from datetime import datetime
-            supabase.table("notice_skip_reasons").insert({
-                "restaurant_id": selected_id,
-                "officer_email": user_email,
-                "reason": reason,
-                "timestamp": datetime.utcnow().isoformat()
-            }).execute()
-            st.success("Reason submitted.")
-            st.rerun()
+# ---------------------- CSV EXPORT ----------------------
+st.markdown("### 📥 Export Restaurant Data as CSV")
+csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
 
-    # -------------------- CSV Export --------------------
-    st.markdown("### 📥 Export Restaurant Data as CSV")
-    csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
-
-    if officer_id:
-        if st.button("📤 Download Your Assigned Restaurants (CSV)"):
-            csv = csv_data.to_csv(index=False).encode("utf-8")
-            st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
-    else:
-        if st.button("📤 Download All Restaurants (CSV)"):
-            csv = csv_data.to_csv(index=False).encode("utf-8")
-            st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
+if officer_id:
+    if st.button("📤 Download Your Assigned Restaurants (CSV)"):
+        csv = csv_data.to_csv(index=False).encode("utf-8")
+        st.download_button("Download CSV", csv, f"restaurants_officer_{officer_id}.csv", "text/csv")
+else:
+    if st.button("📤 Download All Restaurants (CSV)"):
+        csv = csv_data.to_csv(index=False).encode("utf-8")
+        st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
