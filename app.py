@@ -144,17 +144,17 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
 # ---------------------- Current Stats / KPI ----------------------
+# ---------------------- Officer-Wise Compliance Summary ----------------------
 if section == "Current Stats / KPI":
     is_special_user = user_email in special_access_users
 
     if is_special_user:
         st.title("📊 PRA System Status")
 
-        # Load data once from Supabase cache
         treated_df = dfs["treated_restaurant_data"].copy()
         followup_df = dfs["notice_followup_tracking"].copy()
 
-        # Clean & cast
+        # Clean IDs and types
         treated_df = treated_df.dropna(subset=["id", "officer_id"])
         treated_df["id"] = treated_df["id"].astype(str).str.strip()
         treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.strip()
@@ -162,135 +162,86 @@ if section == "Current Stats / KPI":
         followup_df = followup_df.dropna(subset=["restaurant_id"])
         followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
         followup_df["delivery_status"] = followup_df["delivery_status"].fillna("").astype(str)
-        followup_df["correct_address"] = followup_df["correct_address"].fillna("")
-        followup_df["reason"] = followup_df["reason"].fillna("")
+        followup_df["reason"] = followup_df.get("reason", "").astype(str).fillna("")
+        followup_df["correct_address"] = followup_df.get("correct_address", "").astype(str).fillna("")
 
-        # Officer stats
-        total_restaurants = len(treated_df)
-        st.markdown(f"""
-            <style>
-            .short-metric-box {{
-                padding: 1rem;
-                border-radius: 10px;
-                color: white;
-                font-size: 1.2rem;
-                font-weight: 600;
-                background-color: #2563eb;
-                box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
-                text-align: center;
-                width: fit-content;
-                min-width: 200px;
-                margin-bottom: 1rem;
-            }}
-            </style>
-        """, unsafe_allow_html=True)
-        st.markdown(f'<div class="short-metric-box">📘 Total Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
+        officer_ids = sorted(treated_df["officer_id"].unique())
 
-        # Group followups by restaurant_id for faster lookup
-        followup_grouped = followup_df.groupby("restaurant_id")
-
-        officer_ids = sorted(treated_df["officer_id"].dropna().unique())
         for oid in officer_ids:
-            officer_df = treated_df[treated_df["officer_id"] == oid].copy()
-            assigned_ids = set(officer_df["id"])
-            total = len(officer_df)
+            officer_df = treated_df[treated_df["officer_id"] == oid]
+            assigned_ids = officer_df["id"].tolist()
+            total_restaurants = len(officer_df)
 
-            # Only get follow-ups for assigned restaurants
-            followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)]
-            returned = followups[followups["delivery_status"].str.lower() == "returned"]
+            # Filter only those follow-up records related to this officer’s assigned restaurants
+            officer_followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)]
+
+            # Returned notices
+            returned = officer_followups[officer_followups["delivery_status"].str.lower() == "returned"]
+
+            # Resend-worthy: returned AND corrected address or reason
             resend_df = returned[
                 (returned["correct_address"].str.strip() != "") |
                 (returned["reason"].str.strip() != "")
             ]
 
-            with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {total}"):
-                st.markdown(f"""
-                    - 🧾 **Total Assigned Restaurants**: `{total}`  
-                    - 🔁 **Returned Notices**: `{len(returned)}`  
-                    - 📨 **Notices to Re-send**: `{len(resend_df)}`  
-                """)
+            st.markdown("---")
+            with st.expander(f"🧑 Officer ID: {oid} — Assigned: {total_restaurants}, Returned: {len(returned)}, Re-send: {len(resend_df)}", expanded=False):
+
+                col1, col2, col3 = st.columns(3)
+                col1.metric("📋 Assigned", total_restaurants)
+                col2.metric("📬 Returned Notices", len(returned))
+                col3.metric("📨 To Re-send", len(resend_df))
 
                 if not resend_df.empty:
+                    resend_df = resend_df.merge(
+                        officer_df[["id", "restaurant_name", "restaurant_address"]],
+                        left_on="restaurant_id", right_on="id", how="left"
+                    )
+                    st.markdown("### 🗺️ Restaurants to Re-send Notice")
                     st.dataframe(resend_df[[
-                        "restaurant_id", "delivery_status", "correct_address", "reason"
+                        "restaurant_id", "restaurant_name", "restaurant_address", "delivery_status", "correct_address", "reason"
                     ]].reset_index(drop=True))
                 else:
-                    st.info("No returned notices with corrections.")
+                    st.info("✅ No returned notices requiring correction.")
 
-   
 
-    # --- Filing Status Summary (Grouped) ---
-    st.markdown("## 🔄 Latest Formality Status")
+    # --- Filing Status Summary (Grouped Count with Drilldown) ---
+        st.markdown("## 🔄 Latest Formality Status")
 
-    try:
-        followup_df = dfs["notice_followup_tracking"]
-        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+        try:
+            followup_df = dfs["notice_followup_tracking"].copy()
+            treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]].copy()
 
-        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
-        treated_df["id"] = treated_df["id"].astype(str).str.strip()
+            # Clean IDs
+            followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+            treated_df["id"] = treated_df["id"].astype(str).str.strip()
 
-        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("None").str.strip()
-        combined["compliance_status"] = combined["compliance_status"].fillna("None").str.strip()
-        combined["changed"] = combined["latest_formality_status"].str.lower() != combined["compliance_status"].str.lower()
-        changed = combined[combined["changed"]]
+            # Merge with treated to compare status
+            combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
 
-        #st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
+            # Normalize status fields
+            combined["latest_formality_status"] = combined["latest_formality_status"].fillna("").str.strip().str.lower()
+            combined["compliance_status"] = combined["compliance_status"].fillna("").str.strip().str.lower()
 
-        for status_key, group_df in changed.groupby("latest_formality_status"):
-            label = {
-                "filer": "🟢 Started Filing",
-                "none": "⚪ No Change"
-            }.get(status_key.lower(), status_key)
+            # Only keep those where statuses differ
+            combined["changed"] = combined["latest_formality_status"] != combined["compliance_status"]
+            changed = combined[combined["changed"] & (combined["latest_formality_status"] != "")]
 
-            with st.expander(f"{label} — {len(group_df)}"):
-                st.dataframe(group_df[[
-                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
-                ]].reset_index(drop=True))
-    except Exception as e:
-        st.error(f"❌ Could not load status summary: {e}")
+            st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
 
-    # --- Filing Status Summary (Compact View) ---
-    #st.markdown("## 🧾 Compact View of Changes")
+            for status_key, group_df in changed.groupby("latest_formality_status"):
+                label = {
+                    "filer": "🟢 Started Filing",
+                    "none": "⚪ No Change"
+                }.get(status_key.lower(), f"🔄 {status_key.title()}")
 
-    try:
-        followup_df = dfs["notice_followup_tracking"]
-        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
+                with st.expander(f"{label} — {len(group_df)}"):
+                    st.dataframe(group_df[[
+                        "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
+                    ]].reset_index(drop=True))
 
-        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
-        treated_df["id"] = treated_df["id"].astype(str).str.strip()
-
-        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
-        changed = combined[combined["changed"]].copy()
-
-        total_changed = len(changed)
-        st.markdown(f"### 🧾 Restaurants With Status Changes: <span style='background:#dcfce7;padding:5px 10px;border-radius:5px;font-weight:bold;'>{total_changed}</span>", unsafe_allow_html=True)
-
-        restaurant_labels = changed.apply(lambda row: f"{row['restaurant_name']} ({row['id']})", axis=1).tolist()
-        selected_label = st.selectbox("🔍 Select a Restaurant", restaurant_labels)
-
-        selected_id = selected_label.split("(")[-1].replace(")", "").strip()
-        row = changed[changed["id"] == selected_id].iloc[0]
-
-        st.markdown(f"""
-        <div style='
-            border:1px solid #ddd;
-            padding:10px;
-            margin-top:10px;
-            border-radius:6px;
-            background-color:#f9f9f9;
-        '>
-            <b>🏪 {row['restaurant_name']}</b> <br>
-            📍 <i>{row['restaurant_address']}</i> <br>
-            🆔 ID: <code>{row['id']}</code> <br><br>
-            <b>Previous Status:</b> <span style='color:#d97706;'>{row['compliance_status']}</span><br>
-            <b>Latest Status:</b> <span style='color:#16a34a;'>{row['latest_formality_status']}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"❌ Could not load compact summary: {e}")
+        except Exception as e:
+            st.error(f"❌ Could not load summary: {e}")
 
 #------------------------------------------------------------------------------------------------------------------
 
