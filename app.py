@@ -142,66 +142,57 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
 # --- Current Stats / KPI Section ---
+# ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
-    # Load treated and follow-up tables
-    treated_df = load_table("treated_restaurant_data", columns=[
-        "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
-    ])
-    followup_df = load_table("notice_followup_tracking", columns=[
-        "restaurant_id", "delivery_status", "correct_address", "latest_formality_status", "reason"
-    ])
+    treated_df = dfs["treated_restaurant_data"]
+    followup_df = dfs["notice_followup_tracking"]
 
-    # Clean ID columns
-    treated_df = clean_ids(treated_df, ["id", "officer_id"])
-    followup_df = clean_ids(followup_df, ["restaurant_id"])
+    # --- Clean & Cast ---
+    treated_df = treated_df.dropna(subset=["id", "officer_id"])
+    followup_df = followup_df.dropna(subset=["restaurant_id"])
 
-    # Diagnostic view of IDs
-    st.markdown("### 🧪 Raw ID Samples")
-    st.write("Sample `restaurant_id` in followup_df:", followup_df["restaurant_id"].dropna().unique()[:10].tolist())
-    st.write("Sample `id` in treated_df:", treated_df["id"].dropna().unique()[:10].tolist())
+    treated_df["id"] = treated_df["id"].astype(str).str.strip()
+    treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.strip()
+    followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+    followup_df["delivery_status"] = followup_df["delivery_status"].fillna("").astype(str)
 
-    # Show counts
-    st.markdown(f"🧮 Total Treated Restaurants: `{len(treated_df)}`")
-    st.markdown(f"📦 Total Follow-up Entries: `{len(followup_df)}`")
-
-    # Match IDs numerically
-    followup_df["clean_restaurant_id"] = followup_df["restaurant_id"].astype(str).str.extract(r"(\d+)")
-    treated_df["clean_id"] = treated_df["id"].astype(str).str.extract(r"(\d+)")
-
-    # Merge
-    merged = followup_df.merge(
-        treated_df[["clean_id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
-        left_on="clean_restaurant_id", right_on="clean_id", how="left"
-    )
-
-    st.markdown(f"🔗 Merged rows after matching: `{len(merged)}`")
-
-    if merged["officer_id"].isnull().all():
-        st.error("❌ Merge failed — officer IDs not matched. Check ID formats.")
-        st.stop()
-    else:
-        st.success("✅ Merge successful — proceeding with KPI summary.")
-
-    # Officer summary
-    officer_ids = sorted(merged["officer_id"].dropna().unique())
+    # --- Officer-wise Stats ---
+    officer_ids = sorted(treated_df["officer_id"].dropna().unique())
 
     for oid in officer_ids:
-        off_df = merged[merged["officer_id"] == oid]
-        total = len(off_df)
-        returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-        corrected = ((off_df["reason"].fillna("").str.strip() != "") | (off_df["correct_address"].fillna("").str.strip() != "")).sum()
+        # Assigned restaurants
+        assigned = treated_df[treated_df["officer_id"] == oid]
+        assigned_ids = assigned["id"].tolist()
+        total_restaurants = len(assigned)
 
-        with st.expander(f"👮 Officer {oid} — Restaurants: {total} — Returned: {returned}"):
-            col1, col2 = st.columns(2)
-            col1.metric("📬 Notices Returned", returned)
-            col2.metric("🛠️ With Corrections", corrected)
+        # Returned follow-ups (only those with "returned" and linked to this officer)
+        returned_notices = followup_df[
+            (followup_df["delivery_status"].str.lower() == "returned") &
+            (followup_df["restaurant_id"].isin(assigned_ids))
+        ]
 
-            st.dataframe(off_df[[
-                "restaurant_id", "restaurant_name", "delivery_status",
-                "correct_address", "reason", "latest_formality_status", "compliance_status"
-            ]].reset_index(drop=True))
+        st.markdown("---")
+        with st.expander(f"🧑 Officer ID: {oid} — Assigned Restaurants: {total_restaurants}", expanded=False):
+            st.markdown(f"""
+                - 🧾 **Total Assigned Restaurants**: `{total_restaurants}`  
+                - 🔁 **Returned Notices**: `{len(returned_notices)}`  
+            """)
+
+            st.markdown("### 📬 Returned Notices Details")
+            if not returned_notices.empty:
+                # Add back restaurant info
+                display_df = returned_notices.merge(
+                    treated_df[["id", "restaurant_name", "restaurant_address"]],
+                    left_on="restaurant_id", right_on="id", how="left"
+                )
+                st.dataframe(display_df[[
+                    "restaurant_id", "restaurant_name", "restaurant_address",
+                    "delivery_status", "correct_address", "reason"
+                ]].reset_index(drop=True))
+            else:
+                st.info("No returned notices for this officer.")
 
 #------------------------------------------------------------------------------------------------------------------
 
