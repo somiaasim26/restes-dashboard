@@ -146,9 +146,7 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 # ---------------------- Current Stats / KPI ----------------------
 # ---------------------- Officer-Wise Compliance Summary ----------------------
 if section == "Current Stats / KPI":
-    is_special_user = user_email in special_access_users
 
-    if is_special_user:
         st.title("📊 PRA System Status")
 
         treated_df = dfs["treated_restaurant_data"].copy()
