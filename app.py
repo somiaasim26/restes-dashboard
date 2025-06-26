@@ -76,6 +76,7 @@ if not st.session_state["authenticated"]:
 url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
+
 # --- Supabase Load with Pagination ---
 @st.cache_data
 def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
@@ -101,6 +102,7 @@ def clean_ids(df, id_cols):
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().replace("nan", "")
     return df.dropna(subset=id_cols)
+
 
 # --- Table Mapping ---
 tables = {
@@ -138,35 +140,37 @@ else:
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
-# --- Inside the KPI section ---
+
+# --- Current Stats / KPI Section ---
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
-    # Load required tables
+    # Load treated and follow-up tables
     treated_df = load_table("treated_restaurant_data", columns=[
         "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
     ])
     followup_df = load_table("notice_followup_tracking", columns=[
-        "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
+        "restaurant_id", "delivery_status", "correct_address", "latest_formality_status", "reason"
     ])
 
-    # Clean IDs
+    # Clean ID columns
     treated_df = clean_ids(treated_df, ["id", "officer_id"])
     followup_df = clean_ids(followup_df, ["restaurant_id"])
 
-    # Diagnostic Preview
+    # Diagnostic view of IDs
     st.markdown("### 🧪 Raw ID Samples")
     st.write("Sample `restaurant_id` in followup_df:", followup_df["restaurant_id"].dropna().unique()[:10].tolist())
     st.write("Sample `id` in treated_df:", treated_df["id"].dropna().unique()[:10].tolist())
 
+    # Show counts
     st.markdown(f"🧮 Total Treated Restaurants: `{len(treated_df)}`")
     st.markdown(f"📦 Total Follow-up Entries: `{len(followup_df)}`")
 
-    # Align by numeric ID
+    # Match IDs numerically
     followup_df["clean_restaurant_id"] = followup_df["restaurant_id"].astype(str).str.extract(r"(\d+)")
     treated_df["clean_id"] = treated_df["id"].astype(str).str.extract(r"(\d+)")
 
-    # Merge tables
+    # Merge
     merged = followup_df.merge(
         treated_df[["clean_id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
         left_on="clean_restaurant_id", right_on="clean_id", how="left"
@@ -175,19 +179,19 @@ if section == "Current Stats / KPI":
     st.markdown(f"🔗 Merged rows after matching: `{len(merged)}`")
 
     if merged["officer_id"].isnull().all():
-        st.error("❌ Merge failed: No officer_id linked. Check ID patterns.")
+        st.error("❌ Merge failed — officer IDs not matched. Check ID formats.")
         st.stop()
     else:
         st.success("✅ Merge successful — proceeding with KPI summary.")
 
-    # Officer breakdown
+    # Officer summary
     officer_ids = sorted(merged["officer_id"].dropna().unique())
 
     for oid in officer_ids:
         off_df = merged[merged["officer_id"] == oid]
         total = len(off_df)
         returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-        corrected = ((off_df["correct_name"].fillna("").str.strip() != "") | (off_df["correct_address"].fillna("").str.strip() != "")).sum()
+        corrected = ((off_df["reason"].fillna("").str.strip() != "") | (off_df["correct_address"].fillna("").str.strip() != "")).sum()
 
         with st.expander(f"👮 Officer {oid} — Restaurants: {total} — Returned: {returned}"):
             col1, col2 = st.columns(2)
@@ -195,8 +199,8 @@ if section == "Current Stats / KPI":
             col2.metric("🛠️ With Corrections", corrected)
 
             st.dataframe(off_df[[
-                "restaurant_id", "restaurant_name", "delivery_status", 
-                "correct_address", "correct_name", "latest_formality_status", "compliance_status"
+                "restaurant_id", "restaurant_name", "delivery_status",
+                "correct_address", "reason", "latest_formality_status", "compliance_status"
             ]].reset_index(drop=True))
 
 #------------------------------------------------------------------------------------------------------------------
