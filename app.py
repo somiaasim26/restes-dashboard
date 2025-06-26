@@ -132,7 +132,8 @@ if section == "Current Stats / KPI":
     }
     officer_id = officer_ids.get(user_email)
 
-    if officer_id:  # Special Officer View
+    # Officer View
+    if officer_id:
         st.subheader(f"👮 Restaurants Assigned to Officer {officer_id}")
         df_filtered = treated_df[treated_df["officer_id"].astype(str) == officer_id]
 
@@ -140,18 +141,22 @@ if section == "Current Stats / KPI":
         st.dataframe(df_filtered[["id", "restaurant_name", "restaurant_address"]])
 
         if not tracking_df.empty:
-            tracking_df = tracking_df[tracking_df["restaurant_id"].isin(df_filtered["id"])]
+            filtered_tracking = tracking_df[tracking_df["restaurant_id"].isin(df_filtered["id"])]
             st.markdown("### 📦 Enforcement Tracking Records")
-            st.dataframe(tracking_df[[
+            st.dataframe(filtered_tracking[[  # Top 10
                 "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-            ]])
+            ]].head(10))
 
-    else:  # Full View for PI/Admins
+            if st.button("🔍 Load All Tracking"):
+                st.dataframe(filtered_tracking)
+
+    # Admin View
+    else:
         st.markdown("## 📋 Notice Follow-up & Latest Updates")
 
         if not followup_df.empty:
-            treated_df["id"] = treated_df["id"].astype(str)
             followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str)
+            treated_df["id"] = treated_df["id"].astype(str)
 
             merged = pd.merge(
                 followup_df,
@@ -159,34 +164,32 @@ if section == "Current Stats / KPI":
                 left_on="restaurant_id", right_on="id", how="left"
             ).fillna("")
 
-            for oid in officer_ids:
-                officer_df = treated_df[treated_df["officer_id"] == str(oid)]
+            for email, oid in officer_ids.items():
+                officer_df = treated_df[treated_df["officer_id"] == oid]
+                assigned_count = len(officer_df)
 
-                with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {len(officer_df)}"):
+                with st.expander(f"👮 Officer ID: {email} — Assigned Restaurants: {assigned_count}"):
                     st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]].head(10))
                     if st.button(f"📄 Show More Assigned to Officer {oid}", key=f"btn_more_{oid}"):
                         st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]])
 
-                if not tracking_df.empty and "restaurant_id" in tracking_df.columns:
-                    try:
-                        tracking_data = tracking_df.merge(
-                            treated_df[["id", "officer_id"]],
-                            left_on="restaurant_id", right_on="id", how="inner"
-                        )
-                        officer_tracking = tracking_data[tracking_data["officer_id"] == str(oid)]
+                if not tracking_df.empty:
+                    officer_tracking = tracking_df[tracking_df["restaurant_id"].isin(officer_df["id"])]
 
-                        with st.expander(f"📦 Enforcement Tracking — Officer {oid}"):
-                            st.write(f"Total Records: {len(officer_tracking)}")
-                            st.dataframe(officer_tracking[[  # Display top 10
-                                "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-                            ]].head(10))
+                    with st.expander(f"📦 Enforcement Tracking — Officer {oid}"):
+                        st.write(f"Total Records: {len(officer_tracking)}")
+                        st.dataframe(officer_tracking[[  # Display top 10
+                            "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
+                        ]].head(10))
 
-                            if st.button(f"🔍 Load All Tracking — Officer {oid}", key=f"btn_tracking_{oid}"):
-                                st.dataframe(officer_tracking[[
-                                    "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-                                ]])
-                    except Exception as e:
-                        st.warning(f"⚠️ Error loading tracking data: {e}")
+                        if st.button(f"🔍 Load All Tracking — Officer {oid}", key=f"btn_tracking_{oid}"):
+                            st.dataframe(officer_tracking)
+
+                returned = merged[
+                    (merged["officer_id"] == oid) &
+                    (merged["delivery_status"].str.lower() == "returned")
+                ]
+                st.markdown(f"📬 **Returned Notices:** `{len(returned)}`")
 
 #------------------------------------------------------------------------------------------------------------------
 
