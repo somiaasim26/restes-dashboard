@@ -221,43 +221,56 @@ elif section == "Restaurant Profile":
 
    # -------------------- Restaurant Images (by filename logic) --------------------
 import requests
+from PIL import Image
+from io import BytesIO
 
 st.markdown("### 🖼️ Restaurant Images")
 
-# Helper: Supabase image URL builder
+# Helper to build public Supabase image URL
 def get_supabase_image_url(filename):
     return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
-# Image types and captions
+# Types and Labels
 image_types = {
-    "front": "📸 Front",
-    "menu": "🍽️ Menu",
-    "receipt": "🧾 Receipt"
+    "front": "📸 Front Images",
+    "menu": "🍽️ Menu Images",
+    "receipt": "🧾 Receipt Images"
 }
 
-# Try to fetch images for each type (1 main + multiple optional)
-for img_type, caption in image_types.items():
-    found = False
-    for i in range(5):  # check for up to 5 images per type
-        if i == 0:
-            filename = f"{selected_id}_{img_type}.jpg"
-        else:
-            filename = f"{selected_id}_{img_type}_{i}.jpg"
+# Display in 3 columns
+col_front, col_menu, col_receipt = st.columns(3)
+columns = {
+    "front": col_front,
+    "menu": col_menu,
+    "receipt": col_receipt
+}
 
-        image_url = get_supabase_image_url(filename)
+# Loop through types
+for img_type in image_types:
+    with columns[img_type]:
+        st.markdown(f"#### {image_types[img_type]}")
+        found = False
 
-        try:
-            response = requests.get(image_url)
-            if response.status_code == 200:
-                if not found:
-                    st.markdown(f"#### {caption} Images")
+        for i in range(5):  # Check up to 5 images
+            if i == 0:
+                filename = f"{selected_id}_{img_type}.jpg"
+            else:
+                filename = f"{selected_id}_{img_type}_{i}.jpg"
+
+            url = get_supabase_image_url(filename)
+
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    image = Image.open(BytesIO(response.content))
+                    st.image(image, use_column_width="always", caption=filename)
                     found = True
-                st.image(image_url, caption=filename)
-        except:
-            continue
+            except Exception as e:
+                continue
 
-if not found:
-    st.info("No images found for this restaurant.")
+        if not found:
+            st.info(f"No {img_type.capitalize()} image found.")
+
 
 
     # -------------------- Basic Info --------------------
