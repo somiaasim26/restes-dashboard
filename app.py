@@ -77,26 +77,21 @@ url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
 
+# --- Supabase Data Load ---
 @st.cache_data
-def load_table(table_name: str, columns: list = None, order_by: str = None):
+def load_table(table_name: str, columns: list = None):
     try:
         query = supabase.table(table_name).select("*" if columns is None else ",".join(columns))
-        if order_by:
-            query = query.order(order_by)
         response = query.execute()
-        data = response.data
-        if not data:
-            st.warning(f"⚠️ No data returned from Supabase table: {table_name}")
-        return pd.DataFrame(data)
+        return pd.DataFrame(response.data or [])
     except Exception as e:
-        st.error(f"❌ Supabase error loading '{table_name}': {e}")
+        st.error(f"❌ Failed to load `{table_name}`: {e}")
         return pd.DataFrame()
 
-def clean_ids(df, id_cols):
-    for col in id_cols:
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.strip().replace("nan", "")
-    return df.dropna(subset=id_cols)
+def clean_ids(df, cols): 
+    for col in cols:
+        df[col] = df[col].astype(str).str.strip().replace("nan", "")
+    return df.dropna(subset=cols)
 
 
 # --- Table Mapping ---
@@ -136,134 +131,90 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
 # ---------------------- Current Stats / KPI ----------------------
+# Load the 2 tables you are actually using
+treated_df = load_table("treated_restaurant_data", columns=[
+    "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
+])
+followup_df = load_table("notice_followup_tracking", columns=[
+    "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
+])
 
-# --- Current Stats / KPI Section ---
+# Clean IDs
+def clean_ids(df, cols): 
+    for col in cols:
+        df[col] = df[col].astype(str).str.strip().replace("nan", "")
+    return df.dropna(subset=cols)
+
+treated_df = clean_ids(treated_df, ["id", "officer_id"])
+followup_df = clean_ids(followup_df, ["restaurant_id"])
+
+# Merge
+merged = followup_df.merge(treated_df[["id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
+                           left_on="restaurant_id", right_on="id", how="left")
+
+# Show total
+st.subheader("📘 Total Restaurants With Follow-up")
+st.metric("Total", len(merged))
+
+# Show officer breakdown
+officer_ids = sorted(merged["officer_id"].dropna().unique())
+for oid in officer_ids:
+    off_df = merged[merged["officer_id"] == oid]
+    returned = (off_df["delivery_status"].str.lower() == "returned").sum()
+    corrected = ((off_df["correct_name"].str.strip() != "") | (off_df["correct_address"].str.strip() != "")).sum()
+    
+    with st.expander(f"👮 Officer {oid} — {len(off_df)} entries — {returned} returned"):
+        st.metric("📬 Returned", returned)
+        st.metric("🛠️ Corrected Info", corrected)
+        st.dataframe(off_df[[
+            "restaurant_id", "restaurant_name", "delivery_status", 
+            "correct_address", "correct_name", "latest_formality_status"
+        ]].reset_index(drop=True))
+
+# --- Inside the KPI section ---
 if section == "Current Stats / KPI":
     is_special_user = user_email in special_access_users
 
     if is_special_user:
         st.title("📊 PRA System Status")
 
-        # Load Supabase tables with required columns
         treated_df = load_table("treated_restaurant_data", columns=[
             "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
-        ])
-        tracking_df = load_table("enforcement_tracking", columns=[
-            "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
         ])
         followup_df = load_table("notice_followup_tracking", columns=[
             "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
         ])
 
-        # Debug logs
-        st.write("✅ Sample Treated Restaurants", treated_df.head())
-        st.write("✅ Sample Enforcement Tracking", tracking_df.head())
-        st.write("✅ Sample Follow-up Tracking", followup_df.head())
-
-        # Clean IDs
         treated_df = clean_ids(treated_df, ["id", "officer_id"])
-        tracking_df = clean_ids(tracking_df, ["restaurant_id"])
         followup_df = clean_ids(followup_df, ["restaurant_id"])
 
-        # Clean & normalize officer_id
-        treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.extract(r"(\d+)")[0]
-        officer_ids = sorted(treated_df["officer_id"].dropna().unique())
+        # Merge both datasets
+        merged = followup_df.merge(
+            treated_df[["id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
+            left_on="restaurant_id", right_on="id", how="left"
+        )
 
-        # Show total restaurants
-        st.markdown(f"""
-        <div style='padding:1rem;border-radius:10px;color:white;font-size:1.2rem;font-weight:600;
-                    background-color:#2563eb;box-shadow:0px 4px 12px rgba(0,0,0,0.2);
-                    text-align:center;width:fit-content;min-width:200px;margin-bottom:1rem;'>
-            📘 Total Restaurants<br>{len(treated_df)}
-        </div>
-        """, unsafe_allow_html=True)
+        # Show basic KPI
+        st.markdown("### 📘 Restaurants With Follow-up Tracking")
+        st.metric("Total Linked Restaurants", len(merged))
 
+        # Officer-based summaries
+        officer_ids = sorted(merged["officer_id"].dropna().unique())
         for oid in officer_ids:
-            officer_df = treated_df[treated_df["officer_id"] == oid]
-
-            with st.expander(f"👮 Officer ID {oid} — Assigned Restaurants: {len(officer_df)}"):
-                st.dataframe(officer_df[["id", "restaurant_name", "restaurant_address"]])
-
-            if not tracking_df.empty:
-                merged_tracking = tracking_df.merge(
-                    treated_df[["id", "officer_id"]],
-                    left_on="restaurant_id", right_on="id", how="left"
-                )
-                officer_tracking = merged_tracking[merged_tracking["officer_id"] == oid]
-
-                with st.expander(f"📦 Enforcement Tracking — Officer {oid}"):
-                    st.write(f"Total Records: {len(officer_tracking)}")
-                    if not officer_tracking.empty:
-                        st.dataframe(officer_tracking[[
-                            "restaurant_id", "courier_status", "notice_status", "filing_status", "updated_at"
-                        ]])
-                    else:
-                        st.info("No enforcement tracking data.")
-
-    # --- Follow-up Notices Summary ---
-    st.markdown("## 📋 Notice Follow-up & Latest Updates")
-
-    try:
-        merged_follow = followup_df.merge(treated_df[["id", "officer_id"]], left_on="restaurant_id", right_on="id", how="left")
-        merged_follow.fillna("", inplace=True)
-        officer_ids = sorted(merged_follow["officer_id"].dropna().unique())
-
-        for oid in officer_ids:
-            off_df = merged_follow[merged_follow["officer_id"] == oid]
+            off_df = merged[merged["officer_id"] == oid]
             total = len(off_df)
             returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-            corrected_names = (off_df["correct_name"].str.strip() != "").sum()
-            corrected_address = (off_df["correct_address"].str.strip() != "").sum()
+            corrected = ((off_df["correct_name"].str.strip() != "") | (off_df["correct_address"].str.strip() != "")).sum()
 
-            with st.expander(f"🕵️ Officer ID {oid} — Restaurants: {total} — Notices Returned: {returned}"):
+            with st.expander(f"👮 Officer {oid} — Restaurants: {total} — Returned: {returned}"):
                 col1, col2 = st.columns(2)
                 col1.metric("📬 Notices Returned", returned)
-                col2.metric("📛 Corrected Names", corrected_names)
+                col2.metric("🛠️ With Corrections", corrected)
 
-                resend_df = off_df[
-                    (off_df["delivery_status"].str.lower() == "returned") &
-                    (
-                        (off_df["correct_name"].fillna("").str.strip() != "") |
-                        (off_df["correct_address"].fillna("").str.strip() != "")
-                    )
-                ]
-
-                total_resends = len(resend_df)
-                st.markdown(f"### 📨 Total Notices to Re-send: `{total_resends}`")
-
-                if not resend_df.empty:
-                    st.dataframe(resend_df[[
-                        "restaurant_id", "delivery_status", "correct_address", "correct_name", "contact"
-                    ]].reset_index(drop=True))
-                else:
-                    st.info("No returned notices for this officer.")
-    except Exception as e:
-        st.error(f"❌ Error in notice follow-up summary: {e}")
-
-    # --- Filing Status Changes Summary ---
-    st.markdown("## 🔄 Filing Status Change Summary")
-
-    try:
-        combined = followup_df.merge(treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("None").str.strip()
-        combined["compliance_status"] = combined["compliance_status"].fillna("None").str.strip()
-        combined["changed"] = combined["latest_formality_status"].str.lower() != combined["compliance_status"].str.lower()
-        changed = combined[combined["changed"]]
-
-        st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
-
-        for status_key, group_df in changed.groupby("latest_formality_status"):
-            label = {
-                "filer": "🟢 Started Filing",
-                "none": "⚪ No Change"
-            }.get(status_key.lower(), status_key)
-
-            with st.expander(f"{label} — {len(group_df)}"):
-                st.dataframe(group_df[[
-                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
-                ]])
-    except Exception as e:
-        st.error(f"❌ Error in status change section: {e}")
+                st.dataframe(off_df[[
+                    "restaurant_id", "restaurant_name", "delivery_status", 
+                    "correct_address", "correct_name", "latest_formality_status", "compliance_status"
+                ]].reset_index(drop=True))
 
 #------------------------------------------------------------------------------------------------------------------
 
