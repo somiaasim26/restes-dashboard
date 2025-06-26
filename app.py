@@ -322,36 +322,41 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-st.markdown("### 🖼️ Restaurant Images")
-
+# Helper to build public Supabase image URL
 def get_supabase_image_url(filename):
     return f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
 
+# Image Display Section
+st.markdown("### 🖼️ Restaurant Images")
 image_types = {
     "front": "📸 Front Image",
     "menu": "🍽️ Menu Image",
     "receipt": "🧾 Receipt Image"
 }
 
-# Horizontal layout
-image_cols = st.columns(len(image_types))
+cols = st.columns(3)
+for idx, (img_type, title) in enumerate(image_types.items()):
+    with cols[idx]:
+        st.markdown(f"**{title}**")
+        image_found = False
 
-for idx, (img_type, label) in enumerate(image_types.items()):
-    with image_cols[idx]:
-        st.markdown(f"**{label}**")
-        filename = f"{selected_id}_{img_type}.jpg"
-        url = get_supabase_image_url(filename)
+        # Try to preload up to 5 versions, but show only the first that works
+        for i in range(5):
+            filename = f"{selected_id}_{img_type}.jpg" if i == 0 else f"{selected_id}_{img_type}_{i}.jpg"
+            url = get_supabase_image_url(filename)
 
-        try:
-            response = requests.get(url)
-            if response.status_code == 200:
-                image = Image.open(BytesIO(response.content))
-                st.image(image, caption=filename, use_container_width=True)  # ✅ fixed param
-            else:
-                st.info(f"No {img_type} image found.")
-        except Exception as e:
-            st.warning(f"Error loading image: {e}")
+            try:
+                response = requests.get(url)
+                if response.status_code == 200:
+                    image = Image.open(BytesIO(response.content))
+                    st.image(image, caption=filename, use_container_width=True)
+                    image_found = True
+                    break  # ✅ Show only the first valid image
+            except Exception:
+                continue
 
+        if not image_found:
+            st.info(f"No {img_type} image found.")
 
     # -------------------- Basic Info --------------------
     st.markdown("### 🗃️ Basic Info")
