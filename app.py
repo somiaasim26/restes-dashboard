@@ -150,20 +150,26 @@ if section == "Current Stats / KPI":
     if is_special_user:
         st.title("📊 PRA System Status")
 
-        # Load data
-        treated_df = dfs["treated_restaurant_data"]
-        followup_df = dfs["notice_followup_tracking"]
+        # Load data once from Supabase cache
+        treated_df = dfs["treated_restaurant_data"].copy()
+        followup_df = dfs["notice_followup_tracking"].copy()
 
+        # Clean & cast
+        treated_df = treated_df.dropna(subset=["id", "officer_id"])
         treated_df["id"] = treated_df["id"].astype(str).str.strip()
         treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.strip()
+
+        followup_df = followup_df.dropna(subset=["restaurant_id"])
         followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
         followup_df["delivery_status"] = followup_df["delivery_status"].fillna("").astype(str)
+        followup_df["correct_address"] = followup_df["correct_address"].fillna("")
+        followup_df["reason"] = followup_df["reason"].fillna("")
 
-        # Count
+        # Officer stats
         total_restaurants = len(treated_df)
-        st.markdown("""
+        st.markdown(f"""
             <style>
-            .short-metric-box {
+            .short-metric-box {{
                 padding: 1rem;
                 border-radius: 10px;
                 color: white;
@@ -175,42 +181,43 @@ if section == "Current Stats / KPI":
                 width: fit-content;
                 min-width: 200px;
                 margin-bottom: 1rem;
-            }
+            }}
             </style>
         """, unsafe_allow_html=True)
         st.markdown(f'<div class="short-metric-box">📘 Total Restaurants<br>{total_restaurants}</div>', unsafe_allow_html=True)
 
-        officer_ids = sorted(treated_df["officer_id"].dropna().unique())
+        # Group followups by restaurant_id for faster lookup
+        followup_grouped = followup_df.groupby("restaurant_id")
 
+        officer_ids = sorted(treated_df["officer_id"].dropna().unique())
         for oid in officer_ids:
-            officer_df = treated_df[treated_df["officer_id"] == oid]
+            officer_df = treated_df[treated_df["officer_id"] == oid].copy()
+            assigned_ids = set(officer_df["id"])
             total = len(officer_df)
 
-            assigned_ids = officer_df["id"].tolist()
-            returned_notices = followup_df[
-                (followup_df["delivery_status"].str.lower() == "returned") &
-                (followup_df["restaurant_id"].isin(assigned_ids))
+            # Only get follow-ups for assigned restaurants
+            followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)]
+            returned = followups[followups["delivery_status"].str.lower() == "returned"]
+            resend_df = returned[
+                (returned["correct_address"].str.strip() != "") |
+                (returned["reason"].str.strip() != "")
             ]
 
             with st.expander(f"👮 Officer ID: {oid} — Assigned Restaurants: {total}"):
                 st.markdown(f"""
                     - 🧾 **Total Assigned Restaurants**: `{total}`  
-                    - 🔁 **Returned Notices**: `{len(returned_notices)}`  
+                    - 🔁 **Returned Notices**: `{len(returned)}`  
+                    - 📨 **Notices to Re-send**: `{len(resend_df)}`  
                 """)
 
-                if not returned_notices.empty:
-                    resend_df = returned_notices[
-                        (returned_notices["correct_address"].fillna("").str.strip() != "") |
-                        (returned_notices["reason"].fillna("").str.strip() != "")
-                    ]
-                    total_resends = len(resend_df)
-
-                    st.markdown(f"### 📨 Notices to Re-send: `{total_resends}`")
+                if not resend_df.empty:
                     st.dataframe(resend_df[[
                         "restaurant_id", "delivery_status", "correct_address", "reason"
                     ]].reset_index(drop=True))
                 else:
-                    st.info("No returned notices for this officer.")
+                    st.info("No returned notices with corrections.")
+
+   
 
     # --- Filing Status Summary (Grouped) ---
     st.markdown("## 🔄 Latest Formality Status")
