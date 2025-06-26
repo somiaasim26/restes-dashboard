@@ -190,51 +190,6 @@ else:
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 
-# --- Inside the KPI section ---
-if section == "Current Stats / KPI":
-    is_special_user = user_email in special_access_users
-
-    if is_special_user:
-        st.title("📊 PRA System Status")
-
-        treated_df = load_table("treated_restaurant_data", columns=[
-            "id", "restaurant_name", "restaurant_address", "officer_id", "compliance_status"
-        ])
-        followup_df = load_table("notice_followup_tracking", columns=[
-            "restaurant_id", "delivery_status", "correct_name", "correct_address", "latest_formality_status", "contact"
-        ])
-
-        treated_df = clean_ids(treated_df, ["id", "officer_id"])
-        followup_df = clean_ids(followup_df, ["restaurant_id"])
-
-        # Merge both datasets
-        merged = followup_df.merge(
-            treated_df[["id", "officer_id", "restaurant_name", "restaurant_address", "compliance_status"]],
-            left_on="restaurant_id", right_on="id", how="left"
-        )
-
-        # Show basic KPI
-        st.markdown("### 📘 Restaurants With Follow-up Tracking")
-        st.metric("Total Linked Restaurants", len(merged))
-
-        # Officer-based summaries
-        officer_ids = sorted(merged["officer_id"].dropna().unique())
-        for oid in officer_ids:
-            off_df = merged[merged["officer_id"] == oid]
-            total = len(off_df)
-            returned = (off_df["delivery_status"].str.lower() == "returned").sum()
-            corrected = ((off_df["correct_name"].str.strip() != "") | (off_df["correct_address"].str.strip() != "")).sum()
-
-            with st.expander(f"👮 Officer {oid} — Restaurants: {total} — Returned: {returned}"):
-                col1, col2 = st.columns(2)
-                col1.metric("📬 Notices Returned", returned)
-                col2.metric("🛠️ With Corrections", corrected)
-
-                st.dataframe(off_df[[
-                    "restaurant_id", "restaurant_name", "delivery_status", 
-                    "correct_address", "correct_name", "latest_formality_status", "compliance_status"
-                ]].reset_index(drop=True))
-
 #------------------------------------------------------------------------------------------------------------------
 
 # ✅ Updated Restaurant Profile Section
