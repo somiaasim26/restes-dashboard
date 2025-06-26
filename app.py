@@ -117,6 +117,7 @@ else:
 section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 # ---------------------- Current Stats / KPI ----------------------
+# ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
     st.title("📊 PRA System Status")
 
