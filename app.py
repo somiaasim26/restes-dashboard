@@ -537,11 +537,8 @@ elif section == "Restaurant Profile":
         .select("id, restaurant_name, restaurant_address, latitude, longitude, officer_id")
         .execute()
         .data
-    )
-        if treated_df.empty:
-            st.warning("⚠️ No assigned restaurants found for this officer.")
-        st.stop()
-
+        )
+        
 
         skip_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
 
