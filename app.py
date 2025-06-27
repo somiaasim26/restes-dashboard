@@ -534,7 +534,7 @@ elif section == "Restaurant Profile":
     load_chunk_size = 20
 
     # Fetch from Supabase
-    treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, contact, officer_id").execute().data)
+    treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, officer_id").execute().data)
     skip_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
 
     # Filter to officer
@@ -552,10 +552,10 @@ elif section == "Restaurant Profile":
         skipped_df["timestamp"] = pd.to_datetime(skipped_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
 
         display_skipped = skipped_df[[
-            "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact", "reason", "NTN", "timestamp"
+            "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "reason", "NTN", "timestamp"
         ]].rename(columns={
             "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
-            "latitude": "Latitude", "longitude": "Longitude", "contact": "Contact",
+            "latitude": "Latitude", "longitude": "Longitude",
             "reason": "Skip Reason", "NTN": "NTN", "timestamp": "Submitted At"
         })
 
@@ -565,7 +565,7 @@ elif section == "Restaurant Profile":
             "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact"
         ]].rename(columns={
             "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
-            "latitude": "Latitude", "longitude": "Longitude", "contact": "Contact"
+            "latitude": "Latitude", "longitude": "Longitude"
         })
 
         # ------------------ Display + Download ------------------
