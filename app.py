@@ -510,7 +510,6 @@ elif section == "Restaurant Profile":
     if st.button("✅ Submit Reason"):
         try:
             from datetime import datetime
-
             payload = {
                 "restaurant_id": selected_id,
                 "officer_email": user_email,
@@ -519,91 +518,97 @@ elif section == "Restaurant Profile":
             }
             if selected_reason == "Already Registered with PRA" and ntn_input:
                 payload["NTN"] = ntn_input
-
             supabase.table("notice_skip_reasons").insert(payload).execute()
             st.success("✅ Reason submitted successfully!")
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit reason: {e}")
 
-    # ---------------------- SKIP & APPROVED VIEW ----------------------
-    st.markdown("### 📋 Export Restaurant Data as CSV")
+    # ---------------------- EXPORT BLOCK ----------------------
+    st.markdown("## 📤 Export Restaurant Data as CSV")
 
-    # Constants
-    officer_id = officer_ids.get(user_email)
-    load_chunk_size = 20
+    try:
+        officer_id = officer_ids.get(user_email)
+        load_chunk_size = 20
 
-    # Fetch from Supabase
-    treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, officer_id").execute().data)
-    skip_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
+        # Pull data
+        treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, officer_id").execute().data)
+        skip_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
 
-    # Filter to officer
-    if officer_id:
-        treated_df = treated_df[treated_df["officer_id"] == officer_id]
-        skip_df = skip_df[skip_df["officer_email"] == user_email]
+        if officer_id:
+            treated_df = treated_df[treated_df["officer_id"] == officer_id]
+            skip_df = skip_df[skip_df["officer_email"] == user_email]
 
-        treated_df["id"] = treated_df["id"].astype(str)
-        skip_df["restaurant_id"] = skip_df["restaurant_id"].astype(str)
+            treated_df["id"] = treated_df["id"].astype(str)
+            skip_df["restaurant_id"] = skip_df["restaurant_id"].astype(str)
 
-        # ------------------ Skipped ------------------
-        skipped_ids = skip_df["restaurant_id"].unique()
-        skipped_df = treated_df[treated_df["id"].isin(skipped_ids)].copy()
-        skipped_df = skipped_df.merge(skip_df, left_on="id", right_on="restaurant_id", how="left")
-        skipped_df["timestamp"] = pd.to_datetime(skipped_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
+            skipped_ids = skip_df["restaurant_id"].unique()
 
-        display_skipped = skipped_df[[
-            "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "reason", "NTN", "timestamp"
-        ]].rename(columns={
-            "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
-            "latitude": "Latitude", "longitude": "Longitude",
-            "reason": "Skip Reason", "NTN": "NTN", "timestamp": "Submitted At"
-        })
+            skipped_df = treated_df[treated_df["id"].isin(skipped_ids)].copy()
+            approved_df = treated_df[~treated_df["id"].isin(skipped_ids)].copy()
 
-        # ------------------ Approved ------------------
-        approved_df = treated_df[~treated_df["id"].isin(skipped_ids)].copy()
-        display_approved = approved_df[[
-            "id", "restaurant_name", "restaurant_address", "latitude", "longitude"
-        ]].rename(columns={
-            "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
-            "latitude": "Latitude", "longitude": "Longitude"
-        })
+            skip_df["timestamp"] = pd.to_datetime(skip_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
+            skipped_df = skipped_df.merge(skip_df, left_on="id", right_on="restaurant_id", how="left")
 
-        # ------------------ Display + Download ------------------
-        st.subheader("✅ Approved Restaurants (Notice to Send)")
-        if 'approved_offset' not in st.session_state:
-            st.session_state['approved_offset'] = 0
+            # Skipped
+            skipped_display = skipped_df[[
+                "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "reason", "timestamp"
+            ]].rename(columns={
+                "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
+                "latitude": "Latitude", "longitude": "Longitude", "reason": "Skip Reason", "timestamp": "Submitted At"
+            })
 
-        approved_slice = display_approved.iloc[st.session_state['approved_offset']: st.session_state['approved_offset'] + load_chunk_size]
-        st.dataframe(approved_slice, use_container_width=True)
+            # Approved
+            approved_display = approved_df[[
+                "id", "restaurant_name", "restaurant_address", "latitude", "longitude"
+            ]].rename(columns={
+                "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
+                "latitude": "Latitude", "longitude": "Longitude"
+            })
 
-        if st.session_state['approved_offset'] + load_chunk_size < len(display_approved):
-            if st.button("🔄 Load More Approved"):
-                st.session_state['approved_offset'] += load_chunk_size
-                st.experimental_rerun()
+            # Approved Section
+            st.markdown("### ✅ Approved Restaurants (Send Notice)")
+            if 'approved_offset' not in st.session_state:
+                st.session_state['approved_offset'] = 0
 
-        if not display_approved.empty:
-            csv_approved = display_approved.to_csv(index=False).encode("utf-8")
-            st.download_button("📤 Download Approved Notice List (CSV)", csv_approved, file_name="approved_notice.csv", mime="text/csv")
+            approved_slice = approved_display.iloc[
+                st.session_state['approved_offset']: st.session_state['approved_offset'] + load_chunk_size
+            ]
+            st.dataframe(approved_slice, use_container_width=True)
 
-        st.divider()
+            if st.session_state['approved_offset'] + load_chunk_size < len(approved_display):
+                if st.button("🔄 Load More Approved"):
+                    st.session_state['approved_offset'] += load_chunk_size
+                    st.experimental_rerun()
 
-        st.subheader("❌ Skipped Restaurants (Notice Not Sent)")
-        if 'skipped_offset' not in st.session_state:
-            st.session_state['skipped_offset'] = 0
+            if not approved_display.empty:
+                csv_approved = approved_display.to_csv(index=False).encode("utf-8")
+                st.download_button("📤 Download Approved Notice List (CSV)", csv_approved, file_name="approved_notice.csv", mime="text/csv")
 
-        skipped_slice = display_skipped.iloc[st.session_state['skipped_offset']: st.session_state['skipped_offset'] + load_chunk_size]
-        st.dataframe(skipped_slice, use_container_width=True)
+            # Skipped Section
+            st.markdown("---")
+            st.markdown("### ❌ Skipped Restaurants (Notice Not Sent)")
 
-        if st.session_state['skipped_offset'] + load_chunk_size < len(display_skipped):
-            if st.button("🔄 Load More Skipped"):
-                st.session_state['skipped_offset'] += load_chunk_size
-                st.experimental_rerun()
+            if 'skipped_offset' not in st.session_state:
+                st.session_state['skipped_offset'] = 0
 
-        if not display_skipped.empty:
-            csv_skipped = display_skipped.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Download Skipped Restaurants (CSV)", csv_skipped, file_name="skipped_restaurants.csv", mime="text/csv")
+            skipped_slice = skipped_display.iloc[
+                st.session_state['skipped_offset']: st.session_state['skipped_offset'] + load_chunk_size
+            ]
+            st.dataframe(skipped_slice, use_container_width=True)
 
-    
+            if st.session_state['skipped_offset'] + load_chunk_size < len(skipped_display):
+                if st.button("🔄 Load More Skipped"):
+                    st.session_state['skipped_offset'] += load_chunk_size
+                    st.experimental_rerun()
+
+            if not skipped_display.empty:
+                csv_skipped = skipped_display.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download Skipped Restaurants (CSV)", csv_skipped, file_name="skipped_restaurants.csv", mime="text/csv")
+
+    except Exception as e:
+        st.error(f"❌ Could not load exportable data: {e}")
+
 
     # ---------------------- CSV EXPORT ----------------------
     st.markdown("### 📥 Export Restaurant Data as CSV")
