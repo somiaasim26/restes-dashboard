@@ -532,7 +532,17 @@ elif section == "Restaurant Profile":
         load_chunk_size = 20
 
         # Pull data
-        treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, officer_id").execute().data)
+        treated_df = pd.DataFrame(
+        supabase.table("treated_restaurant_data")
+        .select("id, restaurant_name, restaurant_address, latitude, longitude, officer_id")
+        .execute()
+        .data
+    )
+        if treated_df.empty:
+            st.warning("⚠️ No assigned restaurants found for this officer.")
+        st.stop()
+
+
         skip_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
 
         if officer_id:
