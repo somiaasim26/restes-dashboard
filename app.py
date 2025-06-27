@@ -562,7 +562,7 @@ elif section == "Restaurant Profile":
         # ------------------ Approved ------------------
         approved_df = treated_df[~treated_df["id"].isin(skipped_ids)].copy()
         display_approved = approved_df[[
-            "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact"
+            "id", "restaurant_name", "restaurant_address", "latitude", "longitude"
         ]].rename(columns={
             "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
             "latitude": "Latitude", "longitude": "Longitude"
