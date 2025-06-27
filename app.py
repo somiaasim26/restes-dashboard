@@ -9,6 +9,10 @@ import requests
 from PIL import Image
 from io import BytesIO
 from PIL import Image, ExifTags
+import pandas as pd
+import streamlit as st
+from io import StringIO
+        
 
 #from fpdf import FPDF
 
@@ -530,6 +534,48 @@ elif section == "Restaurant Profile":
 
         except Exception as e:
             st.error(f"❌ Failed to submit reason: {e}")
+
+        # Define officer mapping
+        officer_ids = {
+            "Haali1@live.com": "3",
+            "Kamranpra@gmail.com": "2",
+            "Saudatiq90@gmail.com": "1"
+        }
+        officer_id = officer_ids.get(user_email)
+
+        # Fetch treated restaurant data (live from Supabase)
+        treated_data = supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, contact, officer_id").execute().data
+        treated_df = pd.DataFrame(treated_data)
+
+        # Filter to this officer
+        if officer_id:
+            treated_df = treated_df[treated_df["officer_id"] == officer_id]
+
+        # Fetch skip reasons
+        skip_data = supabase.table("notice_skip_reasons").select("restaurant_id").execute().data
+        skip_df = pd.DataFrame(skip_data)
+
+        # Filter out restaurants with a skip reason
+        if not skip_df.empty:
+            treated_df = treated_df[~treated_df["id"].astype(str).isin(skip_df["restaurant_id"].astype(str))]
+
+        # Prepare for download
+        download_df = treated_df[["id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact"]].rename(columns={
+            "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
+            "latitude": "Latitude", "longitude": "Longitude", "contact": "Contact"
+        })
+
+        # Display download button
+        if not download_df.empty:
+            csv = download_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Download Approved Notice Restaurants (CSV)",
+                data=csv,
+                file_name=f"notice_restaurants_officer_{officer_id}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("✅ No restaurants pending notice delivery for your account.")
 
 
     # ---------------------- CSV EXPORT ----------------------
