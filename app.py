@@ -9,10 +9,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 from PIL import Image, ExifTags
-import pandas as pd
-import streamlit as st
 from io import StringIO
-        
 
 #from fpdf import FPDF
 
@@ -535,47 +532,79 @@ elif section == "Restaurant Profile":
         except Exception as e:
             st.error(f"❌ Failed to submit reason: {e}")
 
-        # Define officer mapping
-        officer_ids = {
-            "Haali1@live.com": "3",
-            "Kamranpra@gmail.com": "2",
-            "Saudatiq90@gmail.com": "1"
-        }
+    
+
+        # Constants
         officer_id = officer_ids.get(user_email)
+        load_chunk_size = 20  # max rows per table view
 
-        # Fetch treated restaurant data (live from Supabase)
-        treated_data = supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, contact, officer_id").execute().data
-        treated_df = pd.DataFrame(treated_data)
+        # Fetch data from Supabase
+        treated_df = pd.DataFrame(supabase.table("treated_restaurant_data").select("id, restaurant_name, restaurant_address, latitude, longitude, contact, officer_id").execute().data)
+        skip_df = pd.DataFrame(supabase.table("notice_skip_reasons").select("*").execute().data)
 
-        # Filter to this officer
+        # Filter to current officer
         if officer_id:
             treated_df = treated_df[treated_df["officer_id"] == officer_id]
+            skip_df = skip_df[skip_df["officer_email"] == user_email]
 
-        # Fetch skip reasons
-        skip_data = supabase.table("notice_skip_reasons").select("restaurant_id").execute().data
-        skip_df = pd.DataFrame(skip_data)
+            treated_df["id"] = treated_df["id"].astype(str)
+            skip_df["restaurant_id"] = skip_df["restaurant_id"].astype(str)
 
-        # Filter out restaurants with a skip reason
-        if not skip_df.empty:
-            treated_df = treated_df[~treated_df["id"].astype(str).isin(skip_df["restaurant_id"].astype(str))]
+            # --- Skipped Restaurants
+            skipped_ids = skip_df["restaurant_id"].unique()
+            skipped_df = treated_df[treated_df["id"].isin(skipped_ids)].copy()
+            skipped_df = skipped_df.merge(skip_df, left_on="id", right_on="restaurant_id", how="left")
+            skipped_df["timestamp"] = pd.to_datetime(skipped_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
 
-        # Prepare for download
-        download_df = treated_df[["id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact"]].rename(columns={
-            "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
-            "latitude": "Latitude", "longitude": "Longitude", "contact": "Contact"
-        })
+            display_skipped = skipped_df[[
+                "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact", "reason", "NTN", "timestamp"
+            ]].rename(columns={
+                "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
+                "latitude": "Latitude", "longitude": "Longitude", "contact": "Contact",
+                "reason": "Skip Reason", "NTN": "NTN", "timestamp": "Submitted At"
+            })
 
-        # Display download button
-        if not download_df.empty:
-            csv = download_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="📥 Download Approved Notice Restaurants (CSV)",
-                data=csv,
-                file_name=f"notice_restaurants_officer_{officer_id}.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("✅ No restaurants pending notice delivery for your account.")
+            # --- Approved for Notice
+            approved_df = treated_df[~treated_df["id"].isin(skipped_ids)].copy()
+            display_approved = approved_df[[
+                "id", "restaurant_name", "restaurant_address", "latitude", "longitude", "contact"
+            ]].rename(columns={
+                "id": "Restaurant ID", "restaurant_name": "Name", "restaurant_address": "Address",
+                "latitude": "Latitude", "longitude": "Longitude", "contact": "Contact"
+            })
+
+            # --- Display and Download
+            st.markdown("### ✅ Approved Restaurants (Send Notice)")
+            if 'approved_offset' not in st.session_state:
+                st.session_state['approved_offset'] = 0
+
+            approved_slice = display_approved.iloc[st.session_state['approved_offset']: st.session_state['approved_offset'] + load_chunk_size]
+            st.dataframe(approved_slice, use_container_width=True)
+            if st.session_state['approved_offset'] + load_chunk_size < len(display_approved):
+                if st.button("🔄 Load More Approved"):
+                    st.session_state['approved_offset'] += load_chunk_size
+                    st.experimental_rerun()
+
+            if not display_approved.empty:
+                csv_approved = display_approved.to_csv(index=False).encode("utf-8")
+                st.download_button("📤 Download Approved Notice List (CSV)", csv_approved, file_name="approved_notice.csv", mime="text/csv")
+
+            st.markdown("---")
+            st.markdown("### ❌ Skipped Restaurants (Notice Not Sent)")
+
+            if 'skipped_offset' not in st.session_state:
+                st.session_state['skipped_offset'] = 0
+
+            skipped_slice = display_skipped.iloc[st.session_state['skipped_offset']: st.session_state['skipped_offset'] + load_chunk_size]
+            st.dataframe(skipped_slice, use_container_width=True)
+            if st.session_state['skipped_offset'] + load_chunk_size < len(display_skipped):
+                if st.button("🔄 Load More Skipped"):
+                    st.session_state['skipped_offset'] += load_chunk_size
+                    st.experimental_rerun()
+
+            if not display_skipped.empty:
+                csv_skipped = display_skipped.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download Skipped Restaurants (CSV)", csv_skipped, file_name="skipped_restaurants.csv", mime="text/csv")
 
 
     # ---------------------- CSV EXPORT ----------------------
