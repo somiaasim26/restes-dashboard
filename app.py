@@ -336,9 +336,9 @@ elif section == "Restaurant Profile":
     df = dfs["treated_restaurant_data"]
     survey_df = dfs["surveydata_treatmentgroup"]
     officer_ids = {
-        "Haali1@live.com": "3",
-        "Kamranpra@gmail.com": "2",
-        "Saudatiq90@gmail.com": "1"
+        "haali1@live.com": "3",
+        "kamranpra@gmail.com": "2",
+        "saudatiq90@gmail.com": "1"
     }
     officer_id = officer_ids.get(user_email)
 
