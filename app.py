@@ -51,9 +51,9 @@ approved_users = {
 }
 special_access_users = {
     "salmanzafars@gmail.com": "123PRA**!",
-    "Haali1@live.com": "123PRA**!",
-    "Kamranpra@gmail.com": "123PRA**!",
-    "Saudatiq90@gmail.com": "123PRA**!"
+    "haali1@live.com": "123PRA**!",
+    "kamranpra@gmail.com": "123PRA**!",
+    "saudatiq90@gmail.com": "123PRA**!"
 }
 
 if "authenticated" not in st.session_state:
@@ -72,7 +72,7 @@ if not st.session_state["authenticated"]:
         elif email in special_access_users and special_access_users[email] == password:
             st.session_state["authenticated"] = True
             st.session_state["email"] = email
-            st.session_state["section"] = "Current Stats / KPI"
+            st.session_state["section"] = "Restaurant Profile"
             st.rerun()
         else:
             st.error("Invalid credentials or unauthorized email.")
@@ -139,7 +139,7 @@ if st.session_state.get("section") == "Welcome":
 # --- Sidebar Setup ---
 user_email = st.session_state.get("email")
 if user_email in special_access_users:
-    allowed_sections = ["Current Stats / KPI", "Restaurant Profile"]
+    allowed_sections = ["Restaurant Profile"]
 else:
     allowed_sections = ["Current Stats / KPI", "Data Browser", "Restaurant Profile", "Enforcement Tracking"]
 
