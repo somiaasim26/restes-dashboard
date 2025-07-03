@@ -562,13 +562,20 @@ elif section == "Restaurant Profile":
 
         # Filter by officer
         treated_df = treated_df[treated_df["officer_id"] == officer_id].copy()
+        # Define expected columns
+        expected_cols = ["restaurant_id", "officer_email", "reason", "NTN", "timestamp"]
+
+        # Safely create DataFrame
         skip_df = pd.DataFrame(skip_data)
 
-        if not skip_df.empty and "officer_email" in skip_df.columns:
-            skip_df = skip_df[skip_df["officer_email"] == user_email].copy()
+        # Force expected schema if empty
+        if skip_df.empty:
+            skip_df = pd.DataFrame(columns=expected_cols)
         else:
-            skip_df = pd.DataFrame()  # empty fallback
-        
+            skip_df = skip_df[expected_cols]
+
+        # Filter for current user
+        skip_df = skip_df[skip_df["officer_email"] == user_email].copy()
         st.info(f"Skip Reasons Loaded: {len(skip_df)} rows")
 
 
