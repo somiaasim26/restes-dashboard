@@ -335,56 +335,57 @@ elif section == "Data Browser":
 
     st.title("📦 Query Explorer")
 
-    # Select a table
-    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "registered_ntn_data","notice_followup_tracking"]  # Add your full list here
+    # Table selector
+    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "registered_ntn_data","notice_followup_tracking"
+              ,"notice_skip_reasons"]  # add your tables
     selected_table = st.selectbox("📄 Choose a table", tables)
 
-    # Load column names for dynamic filters
+    # Fetch columns for dropdown
     sample_data = supabase.table(selected_table).select("*").limit(1).execute()
     if not sample_data.data:
-        st.warning("No columns found in selected table.")
+        st.warning("No columns found.")
         st.stop()
     columns = list(sample_data.data[0].keys())
 
-    # Collapsible filter section
+    # --- Filter UI ---
     with st.expander("🔍 Add Filter Conditions"):
         filter_count = st.number_input("Number of filters", min_value=1, max_value=5, value=1, step=1)
-        
         filters = []
+
         for i in range(filter_count):
-            col = st.selectbox(f"Filter {i+1} - Column", columns, key=f"col_{i}")
-            op = st.selectbox(f"Filter {i+1} - Operator", ["=", "!=", "ILIKE", "IS NOT NULL", "IS NULL"], key=f"op_{i}")
-            if op not in ["IS NULL", "IS NOT NULL"]:
-                val = st.text_input(f"Filter {i+1} - Value", key=f"val_{i}")
-            else:
-                val = None
+            col = st.selectbox(f"Filter {i+1}: Column (Required)", columns, key=f"col_{i}")
+            op = st.selectbox(f"Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"], key=f"op_{i}")
+            val = ""
+            if op not in ["", "IS NULL", "IS NOT NULL"]:
+                val = st.text_input("Value (Optional)", key=f"val_{i}")
             filters.append((col, op, val))
 
-    # Build and execute filtered query
+    # --- Build and run query ---
     query = supabase.table(selected_table).select("*")
 
     for col, op, val in filters:
-        if op == "IS NOT NULL":
-            query = query.not_(col, "is", None)
-        elif op == "IS NULL":
+        if op == "":
+            continue  # Skip if no operator chosen
+        if op == "IS NULL":
             query = query.filter(col, "is", None)
-        elif op == "ILIKE":
-            query = query.ilike(col, f"%{val}%")
+        elif op == "IS NOT NULL":
+            query = query.not_(col, "is", None)
         elif op == "=":
             query = query.eq(col, val)
         elif op == "!=":
             query = query.neq(col, val)
+        elif op == "ILIKE":
+            query = query.ilike(col, f"%{val}%")
 
-    # Fetch data
+    # Fetch
     try:
         response = query.limit(1000).execute()
         df = pd.DataFrame(response.data)
         st.subheader("📊 Table Preview")
-        st.dataframe(df)
-        st.success(f"✅ {len(df)} rows loaded from `{selected_table}`")
+        st.dataframe(df, use_container_width=True)
+        st.success(f"✅ {len(df)} rows loaded.")
     except Exception as e:
-        st.error(f"❌ Error: {e}")
-
+        st.error(f"❌ Error loading data: {e}")
 
 # ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
