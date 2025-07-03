@@ -332,57 +332,53 @@ elif section == "Data Browser":
 
     
 ############################################################
-
-
+    
     st.title("📦 Query Explorer")
 
-    # Table dropdown
-    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "registered_ntn_data","notice_followup_tracking", 
-              "notice_skip_reasons"]
+    # Table Selection
+    tables = ["enhanced_treated_restaurants", "treated_restaurant_data", "new_ntn_mappings"]
     selected_table = st.selectbox("📄 Choose a table to explore", tables)
 
-    # Get column list from table
-    sample_data = supabase.table(selected_table).select("*").limit(1).execute()
-    if not sample_data.data:
-        st.warning("No data available in this table.")
+    # Get sample columns
+    sample = supabase.table(selected_table).select("*").limit(1).execute()
+    columns = list(sample.data[0].keys()) if sample.data else []
+    if not columns:
+        st.warning("⚠️ Table has no records.")
         st.stop()
-    columns = list(sample_data.data[0].keys())
 
-    # Expander UI
-    with st.expander("🔍 Add Filter Condition", expanded=True):
-        column = st.selectbox("Filter 1: Column (Required)", columns, key="filter_col")
-
-        # Optional filters
-        operator = st.selectbox("Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"], key="filter_op")
+    with st.expander("🧮 Add Filter Condition", expanded=True):
+        col = st.selectbox("Filter 1: Column (Required)", columns)
+        operator = st.selectbox("Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"])
         value = ""
         if operator not in ["", "IS NULL", "IS NOT NULL"]:
-            value = st.text_input("Value (Optional)", key="filter_val")
+            value = st.text_input("Value (Optional)")
 
-    # Start building query
-    query = supabase.table(selected_table).select("id, restaurant_name")
+    # Base Query
+    query = supabase.table(selected_table).select(f"id, restaurant_name, {col}")
 
-    # Apply filter only if column is selected
-    if column:
+    # Apply filters
+    if col:
         if operator == "IS NULL":
-            query = query.filter(column, "is", None)
+            query = query.filter(col, "is", None)
         elif operator == "IS NOT NULL":
-            query = query.not_(column, "is", None)
+            query = query.not_(col, "is", None)
         elif operator == "=":
-            query = query.eq(column, value)
+            query = query.eq(col, value)
         elif operator == "!=":
-            query = query.neq(column, value)
+            query = query.neq(col, value)
         elif operator == "ILIKE":
-            query = query.ilike(column, f"%{value}%")
+            query = query.ilike(col, f"%{value}%")
 
-    # Execute query
+    # Run Query
     try:
-        result = query.limit(1000).execute()
-        df = pd.DataFrame(result.data)
-        st.subheader("📊 Table Preview (ID + Name)")
+        results = query.limit(1000).execute()
+        df = pd.DataFrame(results.data)
+
+        st.subheader("📊 Table Preview (ID + Name + Selected Column)")
         st.dataframe(df, use_container_width=True)
         st.success(f"✅ {len(df)} records found.")
     except Exception as e:
-        st.error(f"⚠️ Error: {e}")
+        st.error(f"❌ Query failed: {e}")
 
 
 # ---------------------- Restaurant Profile Header ----------------------
