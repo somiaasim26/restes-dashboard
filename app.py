@@ -337,7 +337,8 @@ elif section == "Data Browser":
     st.title("📦 Query Explorer")
 
     # Table dropdown
-    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data"]
+    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "registered_ntn_data","notice_followup_tracking", 
+              "notice_skip_reasons"]
     selected_table = st.selectbox("📄 Choose a table to explore", tables)
 
     # Get column list from table
