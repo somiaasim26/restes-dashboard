@@ -365,16 +365,33 @@ elif section == "Restaurant Profile":
             st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
 
     # --- Restaurant Selector ---
-    rest_df = df[["id", "restaurant_name"]].dropna().copy()
+    # ---(Officer Filtered to Unregistered Only) ---
+    if user_email in officer_ids:
+        officer_id = officer_ids[user_email]
+        officer_df = df[df["officer_id"] == officer_id]
+        unregistered_df = officer_df[officer_df["compliance_status"].str.lower() == "unregistered"].copy()
+        rest_df = unregistered_df[["id", "restaurant_name"]].dropna()
+    else:
+        # Admin/super user: show all restaurants
+        rest_df = df[["id", "restaurant_name"]].dropna().copy()
+
+    # Construct labels
     rest_df["id"] = rest_df["id"].astype(str)
     rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
     rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
 
+    # Prevent errors if nothing found
+    if rest_df.empty:
+        st.warning("No restaurants available to display.")
+        st.stop()
+
+    # Display selection
     selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
     selected_id = selected_label.split(" - ")[0].strip()
     selected_name = selected_label.split(" - ")[1].strip()
 
     st.subheader(f"🏪 {selected_name}")
+
 
     # ---------------------- IMAGE SECTION ----------------------
     from PIL import Image, ExifTags
