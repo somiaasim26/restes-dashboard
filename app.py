@@ -333,36 +333,57 @@ elif section == "Data Browser":
     
 ############################################################
 
+    st.title("📦 Query Explorer")
 
-    st.title("📦 Supabase Data Browser")
+    # Select a table
+    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "registered_ntn_data","notice_followup_tracking"]  # Add your full list here
+    selected_table = st.selectbox("📄 Choose a table", tables)
 
-    # Step 1: Choose a table
-    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "notice_followup_tracking",
-              "notice_skip_reasons","registered_ntn_data"]  # Add more if needed
-    selected_table = st.selectbox("Choose a Table to View", tables)
+    # Load column names for dynamic filters
+    sample_data = supabase.table(selected_table).select("*").limit(1).execute()
+    if not sample_data.data:
+        st.warning("No columns found in selected table.")
+        st.stop()
+    columns = list(sample_data.data[0].keys())
 
-    # Step 2: Optional SQL-like filter
-    custom_filter = st.text_input("Optional WHERE clause (e.g. compliance_status = 'Unregistered')")
+    # Collapsible filter section
+    with st.expander("🔍 Add Filter Conditions"):
+        filter_count = st.number_input("Number of filters", min_value=1, max_value=5, value=1, step=1)
+        
+        filters = []
+        for i in range(filter_count):
+            col = st.selectbox(f"Filter {i+1} - Column", columns, key=f"col_{i}")
+            op = st.selectbox(f"Filter {i+1} - Operator", ["=", "!=", "ILIKE", "IS NOT NULL", "IS NULL"], key=f"op_{i}")
+            if op not in ["IS NULL", "IS NOT NULL"]:
+                val = st.text_input(f"Filter {i+1} - Value", key=f"val_{i}")
+            else:
+                val = None
+            filters.append((col, op, val))
 
-    # Step 3: Fetch from Supabase with optional filter
+    # Build and execute filtered query
     query = supabase.table(selected_table).select("*")
 
-    if custom_filter:
-        try:
-            query = query.filter("raw", f"WHERE {custom_filter}")
-        except Exception as e:
-            st.warning(f"❗ Invalid filter: {e}")
+    for col, op, val in filters:
+        if op == "IS NOT NULL":
+            query = query.not_(col, "is", None)
+        elif op == "IS NULL":
+            query = query.filter(col, "is", None)
+        elif op == "ILIKE":
+            query = query.ilike(col, f"%{val}%")
+        elif op == "=":
+            query = query.eq(col, val)
+        elif op == "!=":
+            query = query.neq(col, val)
 
-    # Step 4: Execute
-    response = query.limit(1000).execute()
-
-    # Step 5: Show results
-    if response.data:
+    # Fetch data
+    try:
+        response = query.limit(1000).execute()
         df = pd.DataFrame(response.data)
+        st.subheader("📊 Table Preview")
         st.dataframe(df)
-        st.success(f"✅ Loaded {len(df)} rows from `{selected_table}`.")
-    else:
-        st.info("ℹ️ No data returned.")
+        st.success(f"✅ {len(df)} rows loaded from `{selected_table}`")
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
 
 
 # ---------------------- Restaurant Profile Header ----------------------
