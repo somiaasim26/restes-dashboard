@@ -332,54 +332,56 @@ elif section == "Data Browser":
 
     
 ############################################################
-    
-    st.title("📦 Query Explorer")
 
-    # Table Selection
+
+    # Choose Table
     tables = ["enhanced_treated_restaurants", "treated_restaurant_data", "new_ntn_mappings"]
     selected_table = st.selectbox("📄 Choose a table to explore", tables)
 
-    # Get sample columns
+    # Sample columns
     sample = supabase.table(selected_table).select("*").limit(1).execute()
     columns = list(sample.data[0].keys()) if sample.data else []
     if not columns:
-        st.warning("⚠️ Table has no records.")
+        st.warning("⚠️ This table has no data.")
         st.stop()
 
-    with st.expander("🧮 Add Filter Condition", expanded=True):
-        col = st.selectbox("Filter 1: Column (Required)", columns)
+    with st.expander("🔍 Add Filter Condition", expanded=True):
+        selected_column = st.selectbox("Filter 1: Column (Required)", columns)
         operator = st.selectbox("Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"])
         value = ""
         if operator not in ["", "IS NULL", "IS NOT NULL"]:
             value = st.text_input("Value (Optional)")
 
-    # Base Query
-    query = supabase.table(selected_table).select(f"id, restaurant_name, {col}")
+    # Query builder
+    query = supabase.table(selected_table).select(f"id, restaurant_name, {selected_column}")
 
-    # Apply filters
-    if col:
+    if selected_column:
         if operator == "IS NULL":
-            query = query.filter(col, "is", None)
+            query = query.filter(selected_column, "is", None)
         elif operator == "IS NOT NULL":
-            query = query.not_(col, "is", None)
+            query = query.not_(selected_column, "is", None)
         elif operator == "=":
-            query = query.eq(col, value)
+            query = query.eq(selected_column, value)
         elif operator == "!=":
-            query = query.neq(col, value)
+            query = query.neq(selected_column, value)
         elif operator == "ILIKE":
-            query = query.ilike(col, f"%{value}%")
+            query = query.ilike(selected_column, f"%{value}%")
 
-    # Run Query
+    # Execute
     try:
         results = query.limit(1000).execute()
         df = pd.DataFrame(results.data)
 
         st.subheader("📊 Table Preview (ID + Name + Selected Column)")
         st.dataframe(df, use_container_width=True)
-        st.success(f"✅ {len(df)} records found.")
+
+        st.success(f"✅ {len(df)} records found")
+        if selected_column in df.columns:
+            distinct_count = df[selected_column].nunique(dropna=True)
+            st.info(f"🧮 Unique `{selected_column}` values: {distinct_count}")
+
     except Exception as e:
         st.error(f"❌ Query failed: {e}")
-
 
 # ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
