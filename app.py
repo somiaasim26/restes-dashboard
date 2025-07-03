@@ -333,59 +333,56 @@ elif section == "Data Browser":
     
 ############################################################
 
+
     st.title("📦 Query Explorer")
 
-    # Table selector
-    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "registered_ntn_data","notice_followup_tracking"
-              ,"notice_skip_reasons"]  # add your tables
-    selected_table = st.selectbox("📄 Choose a table", tables)
+    # Table dropdown
+    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data"]
+    selected_table = st.selectbox("📄 Choose a table to explore", tables)
 
-    # Fetch columns for dropdown
+    # Get column list from table
     sample_data = supabase.table(selected_table).select("*").limit(1).execute()
     if not sample_data.data:
-        st.warning("No columns found.")
+        st.warning("No data available in this table.")
         st.stop()
     columns = list(sample_data.data[0].keys())
 
-    # --- Filter UI ---
-    with st.expander("🔍 Add Filter Conditions"):
-        filter_count = st.number_input("Number of filters", min_value=1, max_value=5, value=1, step=1)
-        filters = []
+    # Expander UI
+    with st.expander("🔍 Add Filter Condition", expanded=True):
+        column = st.selectbox("Filter 1: Column (Required)", columns, key="filter_col")
 
-        for i in range(filter_count):
-            col = st.selectbox(f"Filter {i+1}: Column (Required)", columns, key=f"col_{i}")
-            op = st.selectbox(f"Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"], key=f"op_{i}")
-            val = ""
-            if op not in ["", "IS NULL", "IS NOT NULL"]:
-                val = st.text_input("Value (Optional)", key=f"val_{i}")
-            filters.append((col, op, val))
+        # Optional filters
+        operator = st.selectbox("Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"], key="filter_op")
+        value = ""
+        if operator not in ["", "IS NULL", "IS NOT NULL"]:
+            value = st.text_input("Value (Optional)", key="filter_val")
 
-    # --- Build and run query ---
-    query = supabase.table(selected_table).select("*")
+    # Start building query
+    query = supabase.table(selected_table).select("id, restaurant_name")
 
-    for col, op, val in filters:
-        if op == "":
-            continue  # Skip if no operator chosen
-        if op == "IS NULL":
-            query = query.filter(col, "is", None)
-        elif op == "IS NOT NULL":
-            query = query.not_(col, "is", None)
-        elif op == "=":
-            query = query.eq(col, val)
-        elif op == "!=":
-            query = query.neq(col, val)
-        elif op == "ILIKE":
-            query = query.ilike(col, f"%{val}%")
+    # Apply filter only if column is selected
+    if column:
+        if operator == "IS NULL":
+            query = query.filter(column, "is", None)
+        elif operator == "IS NOT NULL":
+            query = query.not_(column, "is", None)
+        elif operator == "=":
+            query = query.eq(column, value)
+        elif operator == "!=":
+            query = query.neq(column, value)
+        elif operator == "ILIKE":
+            query = query.ilike(column, f"%{value}%")
 
-    # Fetch
+    # Execute query
     try:
-        response = query.limit(1000).execute()
-        df = pd.DataFrame(response.data)
-        st.subheader("📊 Table Preview")
+        result = query.limit(1000).execute()
+        df = pd.DataFrame(result.data)
+        st.subheader("📊 Table Preview (ID + Name)")
         st.dataframe(df, use_container_width=True)
-        st.success(f"✅ {len(df)} rows loaded.")
+        st.success(f"✅ {len(df)} records found.")
     except Exception as e:
-        st.error(f"❌ Error loading data: {e}")
+        st.error(f"⚠️ Error: {e}")
+
 
 # ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
