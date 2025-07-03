@@ -121,8 +121,11 @@ tables = {
     "enforcement_tracking": "Enforcement Tracking",
     "officer_compliance_updates": "Officer Updates",
     "notice_skip_reasons": "Notice Skip Reasons",
+    "enhanced_treated_restaurants": "Updates in Treatment",
+    "new_ntn_mappings": "New NTNs",
+    "registered_ntn_data": "Officer-wise Registered Data",
     "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
-    "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3",
+    "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3"
 }
 dfs = {k: load_table(k) for k in tables}
 
@@ -290,7 +293,7 @@ if section == "Current Stats / KPI":
 #------ Data Browser ----
 
 elif section == "Data Browser":
-    st.title("📋 Supabase Data Browser")
+    st.title("📋 Database Browser")
 
     table_names = list(tables.keys())
     readable_names = [tables[t] for t in table_names]
@@ -330,79 +333,56 @@ elif section == "Data Browser":
     
 ############################################################
 
-    st.title("🔍 Enhanced NTN / Compliance Explorer")
+    st.title("🔍 Search by Query")
+
+    # Load all relevant NTN data at once
+    response = supabase.table("enhanced_treated_restaurants") \
+        .select("id, restaurant_name, ntn, New_NTN") \
+        .limit(3000).execute()
+
+    if not response.data:
+        st.warning("No data retrieved.")
+        st.stop()
+
+    df = pd.DataFrame(response.data)
 
     option = st.selectbox("Choose a Query", [
-        "Total New NTNs Count",
-        "List of Restaurants with New NTNs",
-        "List of Restaurants with Old NTNs",
-        "List of All NTNs (Old + New)",
-        "List of Restaurants by Address",
-        "List by Compliance Status"
+        "All Records with NTN info",
+        "Only New NTNs",
+        "Only Old NTNs",
+        "Restaurants with Any NTN",
+        "Restaurants with Both NTNs",
+        "Restaurants with No NTN"
     ])
 
-    # 1. Total New NTNs Count
-    if option == "Total New NTNs Count":
-        response = supabase.table("enhanced_treated_restaurants") \
-            .select("id", count="exact") \
-            .neq("New_NTN", None) \
-            .execute()
-
-        count = response.count
-        st.metric("✅ Total New NTNs", count)
-
-
-
-    # 2. List of Restaurants with New NTNs
-    elif option == "List of Restaurants with New NTNs":
-        data = supabase.table("enhanced_treated_restaurants") \
-            .select("id, restaurant_name, New_NTN") \
-            .not_('New_NTN', 'is', None) \
-            .limit(1000).execute()
-        df = pd.DataFrame(data.data)
+    # Display based on query
+    if option == "All Records with NTN info":
         st.dataframe(df)
 
-    # 3. List of Restaurants with Old NTNs
-    elif option == "List of Restaurants with Old NTNs":
-        data = supabase.table("enhanced_treated_restaurants") \
-            .select("id, restaurant_name, ntn") \
-            .not_('ntn', 'is', None) \
-            .limit(1000).execute()
-        df = pd.DataFrame(data.data)
-        st.dataframe(df)
+    elif option == "Only New NTNs":
+        filtered = df[df["New_NTN"].notna()]
+        st.metric("🆕 New NTNs Found", len(filtered))
+        st.dataframe(filtered)
 
-    # 4. List of All NTNs
-    elif option == "List of All NTNs (Old + New)":
-        data = supabase.table("enhanced_treated_restaurants") \
-            .select("id, restaurant_name, ntn, New_NTN") \
-            .or_("ntn.is.not.null,New_NTN.is.not.null") \
-            .limit(1000).execute()
-        df = pd.DataFrame(data.data)
-        st.dataframe(df)
+    elif option == "Only Old NTNs":
+        filtered = df[df["ntn"].notna()]
+        st.metric("📦 Old NTNs Found", len(filtered))
+        st.dataframe(filtered)
 
-    # 5. Search by Address (Dynamic Filter)
-    elif option == "List of Restaurants by Address":
-        address_query = st.text_input("Enter partial address (e.g., DHA or MM Alam):")
-        if address_query:
-            data = supabase.table("enhanced_treated_restaurants") \
-                .select("id, restaurant_name, restaurant_address") \
-                .ilike('restaurant_address', f'%{address_query}%') \
-                .limit(1000).execute()
-            df = pd.DataFrame(data.data)
-            st.dataframe(df)
+    elif option == "Restaurants with Any NTN":
+        filtered = df[df["ntn"].notna() | df["New_NTN"].notna()]
+        st.metric("✅ Total Restaurants with NTN", len(filtered))
+        st.dataframe(filtered)
 
-    # 6. Filter by Compliance
-    elif option == "List by Compliance Status":
-        compliance_choice = st.selectbox("Choose Status", [
-            "Compliant", "Non-Compliant", "Partially Compliant", "Unverified"
-        ])
-        data = supabase.table("enhanced_treated_restaurants") \
-            .select("id, restaurant_name, compliance_status") \
-            .eq("compliance_status", compliance_choice) \
-            .limit(1000).execute()
-        df = pd.DataFrame(data.data)
-        st.dataframe(df)
+    elif option == "Restaurants with Both NTNs":
+        filtered = df[df["ntn"].notna() & df["New_NTN"].notna()]
+        st.metric("📊 Restaurants with Both NTNs", len(filtered))
+        st.dataframe(filtered)
 
+    elif option == "Restaurants with No NTN":
+        filtered = df[df["ntn"].isna() & df["New_NTN"].isna()]
+        st.metric("❌ No NTN Found", len(filtered))
+        st.dataframe(filtered)
 
 
 # ---------------------- Restaurant Profile Header ----------------------
