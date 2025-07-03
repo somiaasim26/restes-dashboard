@@ -422,31 +422,45 @@ elif section == "Restaurant Profile":
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
+
+    # Filter officer-specific restaurants
     if user_email in officer_ids:
         officer_id = officer_ids[user_email]
-        officer_df = df[df["officer_id"] == officer_id]
-        unregistered_df = officer_df[officer_df["compliance_status"].str.lower() == "unregistered"].copy()
-        rest_df = unregistered_df[["id", "restaurant_name"]].dropna()
+        filtered_df = df[df["officer_id"] == officer_id][["id", "restaurant_name"]].dropna().sort_values("id").reset_index(drop=True)
     else:
-        # Admin/super user: show all restaurants
-        rest_df = df[["id", "restaurant_name"]].dropna().copy()
+        filtered_df = df[["id", "restaurant_name"]].dropna().sort_values("id").reset_index(drop=True)
 
-    # Construct labels
-    rest_df["id"] = rest_df["id"].astype(str)
-    rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
-    rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
-
-    # Prevent errors if nothing found
-    if rest_df.empty:
+    # Prevent errors
+    if filtered_df.empty:
         st.warning("No restaurants available to display.")
         st.stop()
 
-    # Display selection
-    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
-    selected_id = selected_label.split(" - ")[0].strip()
-    selected_name = selected_label.split(" - ")[1].strip()
+    # Build label for dropdown
+    filtered_df["label"] = filtered_df["id"].astype(str) + " - " + filtered_df["restaurant_name"]
 
-    st.subheader(f"🏪 {selected_name}")
+    # Initialize session state index
+    if "current_index" not in st.session_state:
+        st.session_state.current_index = 0
+
+    # --- DROPDOWN SELECTOR ---
+    selected_label = st.selectbox("🔍 Search by ID or Name", filtered_df["label"].tolist())
+    selected_index = filtered_df[filtered_df["label"] == selected_label].index[0]
+
+    # Update current index based on dropdown selection
+    st.session_state.current_index = selected_index
+
+    # Get selected restaurant info
+    selected_row = filtered_df.iloc[st.session_state.current_index]
+    selected_id = str(selected_row["id"])
+    selected_name = selected_row["restaurant_name"]
+
+    # --- NEXT BUTTON ---
+    if st.button("➡️ Next Restaurant"):
+        st.session_state.current_index += 1
+        if st.session_state.current_index >= len(filtered_df):
+            st.session_state.current_index = 0
+        st.rerun()
+
 
 
     # ---------------------- IMAGE SECTION ----------------------
