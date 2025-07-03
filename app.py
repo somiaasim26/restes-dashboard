@@ -455,12 +455,7 @@ elif section == "Restaurant Profile":
             st.session_state.current_index = 0
         st.rerun()
 
-    # Display selection
-    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
-    selected_id = selected_label.split(" - ")[0].strip()
-    selected_name = selected_label.split(" - ")[1].strip()
-
-    st.subheader(f"🏪 {selected_name}")
+    
 
 
     # ---------------------- IMAGE SECTION ----------------------
