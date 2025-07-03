@@ -422,30 +422,56 @@ elif section == "Restaurant Profile":
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
-    if user_email in officer_ids:
-        officer_id = officer_ids[user_email]
-        officer_df = df[df["officer_id"] == officer_id]
-        unregistered_df = officer_df[officer_df["compliance_status"].str.lower() == "unregistered"].copy()
-        rest_df = unregistered_df[["id", "restaurant_name"]].dropna()
+    # ---------------------- Restaurant Selector + Next Button ----------------------
+    @st.cache_data(show_spinner=False)
+    def load_restaurant_list(officer_id=None, user_type="officer"):
+        query = supabase.table("treated_restaurant_data").select("id, restaurant_name, compliance_status, officer_id")
+
+        if user_type == "officer" and officer_id:
+            query = query.eq("officer_id", officer_id).eq("compliance_status", "Unregistered")
+        # For admins: no filter
+
+        data = query.limit(2000).execute().data
+        df = pd.DataFrame(data)
+
+        if not df.empty:
+            df["id"] = df["id"].astype(str)
+            df["restaurant_name"] = df["restaurant_name"].fillna("")
+            df["label"] = df["id"].str.zfill(6) + " - " + df["restaurant_name"]
+            df = df.sort_values("id", key=lambda x: x.str.zfill(10)).reset_index(drop=True)
+        return df
+
+
+    # Determine user type
+    officer_id = officer_ids.get(user_email)
+    if officer_id:
+        rest_df = load_restaurant_list(officer_id, user_type="officer")
+        st.info(f"🔒 Officer View — showing Unregistered restaurants assigned to Officer {officer_id}")
     else:
-        # Admin/super user: show all restaurants
-        rest_df = df[["id", "restaurant_name"]].dropna().copy()
+        rest_df = load_restaurant_list(user_type="admin")
+        st.info("🔓 Admin View — showing all restaurants")
 
-    # Construct labels
-    rest_df["id"] = rest_df["id"].astype(str)
-    rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
-    rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
-
-    # Prevent errors if nothing found
+    # Handle empty results
     if rest_df.empty:
         st.warning("No restaurants available to display.")
         st.stop()
 
-    # Display selection
-    selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
-    selected_id = selected_label.split(" - ")[0].strip()
-    selected_name = selected_label.split(" - ")[1].strip()
+    # Initialize index
+    if "rest_index" not in st.session_state:
+        st.session_state.rest_index = 0
 
+    # Dropdown search
+    search_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist(), index=st.session_state.rest_index)
+    selected_id = search_label.split(" - ")[0].strip()
+    selected_name = search_label.split(" - ")[1].strip()
+    st.session_state.rest_index = rest_df.index[rest_df["id"] == selected_id].tolist()[0]
+
+    # Next button (circular navigation)
+    if st.button("➡️ Next Restaurant"):
+        st.session_state.rest_index = (st.session_state.rest_index + 1) % len(rest_df)
+        st.rerun()
+
+    # Heading
     st.subheader(f"🏪 {selected_name}")
 
 
