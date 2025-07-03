@@ -362,8 +362,8 @@ elif section == "Data Browser":
     # 1. Unregistered
     if option == "Unregistered Compliance":
         filtered = df[
-            df["compliance_status"].apply(lambda x: is_match(x, "unregistered")) |
-            df["compliance_status_update"].apply(lambda x: is_match(x, "unregistered"))
+            df["compliance_status"].apply(lambda x: is_match(x, "Unregistered")) |
+            df["latest_formality_status"].apply(lambda x: is_match(x, "Unregistered"))
         ]
         st.metric("❌ Unregistered Restaurants", len(filtered))
         st.dataframe(filtered[["id", "restaurant_name"]])
@@ -371,8 +371,8 @@ elif section == "Data Browser":
     # 2. Registered
     elif option == "Registered Compliance":
         filtered = df[
-            df["compliance_status"].apply(lambda x: is_match(x, "registered")) |
-            df["compliance_status_update"].apply(lambda x: is_match(x, "registered"))
+            df["compliance_status"].apply(lambda x: is_match(x, "Registered")) |
+            df["latest_formality_status"].apply(lambda x: is_match(x, "Registered"))
         ]
         st.metric("✅ Registered Restaurants", len(filtered))
         st.dataframe(filtered[["id", "restaurant_name"]])
@@ -380,8 +380,8 @@ elif section == "Data Browser":
     # 3. Filed
     elif option == "Filed Compliance":
         filtered = df[
-            df["compliance_status"].apply(lambda x: "filed" in str(x).lower()) |
-            df["compliance_status_update"].apply(lambda x: "filed" in str(x).lower())
+            df["compliance_status"].apply(lambda x: "Filed" in str(x).lower()) |
+            df["latest_formality_status"].apply(lambda x: "Filed" in str(x).lower())
         ]
         st.metric("📤 Filed Compliance Restaurants", len(filtered))
         st.dataframe(filtered[["id", "restaurant_name"]])
