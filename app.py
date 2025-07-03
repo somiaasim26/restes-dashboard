@@ -328,6 +328,7 @@ elif section == "Data Browser":
         st.dataframe(full_df)
 
     
+############################################################
 
     st.title("🔍 Enhanced NTN / Compliance Explorer")
 
@@ -343,10 +344,11 @@ elif section == "Data Browser":
     # 1. Total New NTNs Count
     if option == "Total New NTNs Count":
         count_query = supabase.table("enhanced_treated_restaurants") \
-            .select("New_NTN", count="exact") \
-            .not_('New_NTN', 'is', None)
-        count = count_query.execute().count
+            .select("id", count="exact") \
+            .neq("New_NTN", None)
+        count = count_query.count
         st.metric("✅ Total New NTNs", count)
+
 
     # 2. List of Restaurants with New NTNs
     elif option == "List of Restaurants with New NTNs":
