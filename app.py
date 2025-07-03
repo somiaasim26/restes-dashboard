@@ -334,84 +334,34 @@ elif section == "Data Browser":
 ############################################################
 
 
-    st.title("📋 Query Explorer")
+    st.title("📦 Supabase Data Browser")
 
-    # Load minimal dataset
-    response = supabase.table("enhanced_treated_restaurants").select(
-        "id, restaurant_name, compliance_status, latest_formality_status, ntn, New_NTN, notice_status"
-    ).limit(3000).execute()
+    # Step 1: Choose a table
+    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data"]  # Add more if needed
+    selected_table = st.selectbox("Choose a Table to View", tables)
 
-    if not response.data:
-        st.error("❌ Could not fetch data from Supabase.")
-        st.stop()
+    # Step 2: Optional SQL-like filter
+    custom_filter = st.text_input("Optional WHERE clause (e.g. compliance_status = 'Unregistered')")
 
-    df = pd.DataFrame(response.data)
+    # Step 3: Fetch from Supabase with optional filter
+    query = supabase.table(selected_table).select("*")
 
-    query = st.selectbox("Choose Query", [
-        "Unregistered Compliance",
-        "Registered Compliance",
-        "Filed Compliance",
-        "Restaurants with NTNs (Old/New)",
-        "Notice Sent",
-        "No Notice Sent or Resent"
-    ])
+    if custom_filter:
+        try:
+            query = query.filter("raw", f"WHERE {custom_filter}")
+        except Exception as e:
+            st.warning(f"❗ Invalid filter: {e}")
 
-    def match_field(df, colname, keyword):
-        return df[colname].fillna("").str.lower().str.strip() == keyword.lower()
+    # Step 4: Execute
+    response = query.limit(1000).execute()
 
-    def contains_field(df, colname, keyword):
-        return df[colname].fillna("").str.lower().str.contains(keyword.lower())
-
-    # QUERY 1: Unregistered Compliance
-    if query == "Unregistered Compliance":
-        filtered = df[
-            match_field(df, "compliance_status", "unregistered") |
-            match_field(df, "latest_formality_status", "unregistered")
-        ]
-        st.metric("❌ Unregistered", len(filtered))
-        with st.expander("Show Results"):
-            st.dataframe(filtered[["id", "restaurant_name", "latest_formality_status"]])
-
-    # QUERY 2: Registered Compliance
-    elif query == "Registered Compliance":
-        filtered = df[
-            match_field(df, "compliance_status", "registered") |
-            match_field(df, "latest_formality_status", "registered")
-        ]
-        st.metric("✅ Registered", len(filtered))
-        with st.expander("Show Results"):
-            st.dataframe(filtered[["id", "restaurant_name", "latest_formality_status"]])
-
-    # QUERY 3: Filed Compliance
-    elif query == "Filed Compliance":
-        filtered = df[
-            contains_field(df, "compliance_status", "filed") |
-            contains_field(df, "latest_formality_status", "filed")
-        ]
-        st.metric("📤 Filed", len(filtered))
-        with st.expander("Show Results"):
-            st.dataframe(filtered[["id", "restaurant_name", "latest_formality_status"]])
-
-    # QUERY 4: Both NTNs
-    elif query == "Restaurants with Both NTNs":
-        filtered = df[df["ntn"].notna() & df["New_NTN"].notna()]
-        st.metric("🧾 With Both NTNs", len(filtered))
-        with st.expander("Show Restaurants"):
-            st.dataframe(filtered[["id", "restaurant_name", "ntn", "New_NTN"]])
-
-    # QUERY 5: Notice Sent
-    elif query == "Notice Sent":
-        filtered = contains_field(df, "notice_status", "sent")
-        st.metric("📬 Notice Sent", filtered.sum())
-        with st.expander("Show Restaurants"):
-            st.dataframe(df[filtered][["id", "restaurant_name", "notice_status"]])
-
-    # QUERY 6: No Notice Sent or Resent
-    elif query == "No Notice Sent or Resent":
-        filtered = ~df["notice_status"].fillna("").str.lower().str.contains("sent|resent")
-        st.metric("📭 No Notice Sent", filtered.sum())
-        with st.expander("Show Restaurants"):
-            st.dataframe(df[filtered][["id", "restaurant_name", "notice_status"]])
+    # Step 5: Show results
+    if response.data:
+        df = pd.DataFrame(response.data)
+        st.dataframe(df)
+        st.success(f"✅ Loaded {len(df)} rows from `{selected_table}`.")
+    else:
+        st.info("ℹ️ No data returned.")
 
 
 # ---------------------- Restaurant Profile Header ----------------------
