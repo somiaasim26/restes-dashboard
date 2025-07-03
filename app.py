@@ -337,7 +337,8 @@ elif section == "Data Browser":
     st.title("📦 Supabase Data Browser")
 
     # Step 1: Choose a table
-    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data"]  # Add more if needed
+    tables = ["enhanced_treated_restaurants", "new_ntn_mappings", "treated_restaurant_data", "notice_followup_tracking",
+              "notice_skip_reasons","registered_ntn_data"]  # Add more if needed
     selected_table = st.selectbox("Choose a Table to View", tables)
 
     # Step 2: Optional SQL-like filter
