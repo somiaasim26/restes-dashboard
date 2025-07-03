@@ -343,11 +343,14 @@ elif section == "Data Browser":
 
     # 1. Total New NTNs Count
     if option == "Total New NTNs Count":
-        count_query = supabase.table("enhanced_treated_restaurants") \
+        response = supabase.table("enhanced_treated_restaurants") \
             .select("id", count="exact") \
-            .neq("New_NTN", None)
-        count = count_query.count
+            .neq("New_NTN", None) \
+            .execute()
+
+        count = response.count
         st.metric("✅ Total New NTNs", count)
+
 
 
     # 2. List of Restaurants with New NTNs
