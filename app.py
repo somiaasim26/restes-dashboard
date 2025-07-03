@@ -421,25 +421,39 @@ elif section == "Restaurant Profile":
             st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
 
     # --- Restaurant Selector ---
-    # ---(Officer Filtered to Unregistered Only) ---
+    # ---------------------- NEXT BUTTON NAVIGATION ONLY ----------------------
+
+    # Filter officer-specific restaurants
     if user_email in officer_ids:
         officer_id = officer_ids[user_email]
-        officer_df = df[df["officer_id"] == officer_id]
-        unregistered_df = officer_df[officer_df["compliance_status"].str.lower() == "unregistered"].copy()
-        rest_df = unregistered_df[["id", "restaurant_name"]].dropna()
+        navigation_df = df[df["officer_id"] == officer_id][["id", "restaurant_name"]].dropna().sort_values("id").reset_index(drop=True)
     else:
-        # Admin/super user: show all restaurants
-        rest_df = df[["id", "restaurant_name"]].dropna().copy()
+        navigation_df = df[["id", "restaurant_name"]].dropna().sort_values("id").reset_index(drop=True)
 
-    # Construct labels
-    rest_df["id"] = rest_df["id"].astype(str)
-    rest_df["label"] = rest_df["id"] + " - " + rest_df["restaurant_name"].fillna("")
-    rest_df = rest_df.sort_values("id", key=lambda x: x.str.zfill(10))
-
-    # Prevent errors if nothing found
-    if rest_df.empty:
+    # Prevent errors
+    if navigation_df.empty:
         st.warning("No restaurants available to display.")
         st.stop()
+
+    # Initialize session state
+    if "current_index" not in st.session_state:
+        st.session_state.current_index = 0
+
+    # Reset if out of bounds
+    if st.session_state.current_index >= len(navigation_df):
+        st.session_state.current_index = 0
+
+    # Select current row
+    selected_row = navigation_df.iloc[st.session_state.current_index]
+    selected_id = str(selected_row["id"])
+    selected_name = selected_row["restaurant_name"]
+
+    # Display Next button only
+    if st.button("➡️ Next Restaurant"):
+        st.session_state.current_index += 1
+        if st.session_state.current_index >= len(navigation_df):
+            st.session_state.current_index = 0
+        st.rerun()
 
     # Display selection
     selected_label = st.selectbox("🔍 Search by ID or Name", rest_df["label"].tolist())
