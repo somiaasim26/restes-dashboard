@@ -558,11 +558,19 @@ elif section == "Restaurant Profile":
         skip_data = supabase.table("notice_skip_reasons").select("restaurant_id, officer_email, reason, NTN, timestamp").execute().data
 
         treated_df = pd.DataFrame(treated_data)
-        skip_df = pd.DataFrame(skip_data)
+        
 
         # Filter by officer
         treated_df = treated_df[treated_df["officer_id"] == officer_id].copy()
-        skip_df = skip_df[skip_df["officer_email"] == user_email].copy()
+        skip_df = pd.DataFrame(skip_data)
+
+        if not skip_df.empty and "officer_email" in skip_df.columns:
+            skip_df = skip_df[skip_df["officer_email"] == user_email].copy()
+        else:
+            skip_df = pd.DataFrame()  # empty fallback
+        
+        st.info(f"Skip Reasons Loaded: {len(skip_df)} rows")
+
 
         treated_df["id"] = treated_df["id"].astype(str)
         skip_df["restaurant_id"] = skip_df["restaurant_id"].astype(str)
