@@ -333,76 +333,86 @@ elif section == "Data Browser":
     
 ############################################################
 
-    st.title("📋 Restaurant Compliance / NTN Status Explorer")
 
-    # Load once — keep fields minimal
+    st.title("📋 Query Explorer")
+
+    # Load minimal dataset
     response = supabase.table("enhanced_treated_restaurants").select(
-        "id, restaurant_name, compliance_status, compliance_status_update, ntn, New_NTN, notice_status"
+        "id, restaurant_name, compliance_status, latest_formality_status, ntn, New_NTN, notice_status"
     ).limit(3000).execute()
 
     if not response.data:
-        st.error("❌ Failed to fetch data from Supabase.")
+        st.error("❌ Could not fetch data from Supabase.")
         st.stop()
 
     df = pd.DataFrame(response.data)
 
-    option = st.selectbox("Choose Query", [
+    query = st.selectbox("Choose Query", [
         "Unregistered Compliance",
         "Registered Compliance",
         "Filed Compliance",
-        "Restaurants with Both NTNs",
+        "Restaurants with NTNs (Old/New)",
         "Notice Sent",
         "No Notice Sent or Resent"
     ])
 
-    # Normalize compliance columns
-    def is_match(value, target):
-        return isinstance(value, str) and value.strip().lower() == target
+    def match_field(df, colname, keyword):
+        return df[colname].fillna("").str.lower().str.strip() == keyword.lower()
 
-    # 1. Unregistered
-    if option == "Unregistered Compliance":
+    def contains_field(df, colname, keyword):
+        return df[colname].fillna("").str.lower().str.contains(keyword.lower())
+
+    # QUERY 1: Unregistered Compliance
+    if query == "Unregistered Compliance":
         filtered = df[
-            df["compliance_status"].apply(lambda x: is_match(x, "Unregistered")) |
-            df["latest_formality_status"].apply(lambda x: is_match(x, "Unregistered"))
+            match_field(df, "compliance_status", "unregistered") |
+            match_field(df, "latest_formality_status", "unregistered")
         ]
-        st.metric("❌ Unregistered Restaurants", len(filtered))
-        st.dataframe(filtered[["id", "restaurant_name"]])
+        st.metric("❌ Unregistered", len(filtered))
+        with st.expander("Show Results"):
+            st.dataframe(filtered[["id", "restaurant_name", "latest_formality_status"]])
 
-    # 2. Registered
-    elif option == "Registered Compliance":
+    # QUERY 2: Registered Compliance
+    elif query == "Registered Compliance":
         filtered = df[
-            df["compliance_status"].apply(lambda x: is_match(x, "Registered")) |
-            df["latest_formality_status"].apply(lambda x: is_match(x, "Registered"))
+            match_field(df, "compliance_status", "registered") |
+            match_field(df, "latest_formality_status", "registered")
         ]
-        st.metric("✅ Registered Restaurants", len(filtered))
-        st.dataframe(filtered[["id", "restaurant_name"]])
+        st.metric("✅ Registered", len(filtered))
+        with st.expander("Show Results"):
+            st.dataframe(filtered[["id", "restaurant_name", "latest_formality_status"]])
 
-    # 3. Filed
-    elif option == "Filed Compliance":
+    # QUERY 3: Filed Compliance
+    elif query == "Filed Compliance":
         filtered = df[
-            df["compliance_status"].apply(lambda x: "Filed" in str(x).lower()) |
-            df["latest_formality_status"].apply(lambda x: "Filed" in str(x).lower())
+            contains_field(df, "compliance_status", "filed") |
+            contains_field(df, "latest_formality_status", "filed")
         ]
-        st.metric("📤 Filed Compliance Restaurants", len(filtered))
-        st.dataframe(filtered[["id", "restaurant_name"]])
+        st.metric("📤 Filed", len(filtered))
+        with st.expander("Show Results"):
+            st.dataframe(filtered[["id", "restaurant_name", "latest_formality_status"]])
 
-    # 4. Both NTNs present
-    elif option == "Restaurants with Both NTNs":
+    # QUERY 4: Both NTNs
+    elif query == "Restaurants with Both NTNs":
         filtered = df[df["ntn"].notna() & df["New_NTN"].notna()]
-        st.metric("🧾 Restaurants with Both NTNs", len(filtered))
-        st.dataframe(filtered[["id", "restaurant_name", "ntn", "New_NTN"]])
+        st.metric("🧾 With Both NTNs", len(filtered))
+        with st.expander("Show Restaurants"):
+            st.dataframe(filtered[["id", "restaurant_name", "ntn", "New_NTN"]])
 
-    # 5. Notice Sent
-    elif option == "Notice Sent":
-        filtered = df[df["notice_status"].apply(lambda x: "sent" in str(x).lower())]
-        st.metric("📬 Notices Sent", len(filtered))
-        st.dataframe(filtered[["id", "restaurant_name", "notice_status"]])
+    # QUERY 5: Notice Sent
+    elif query == "Notice Sent":
+        filtered = contains_field(df, "notice_status", "sent")
+        st.metric("📬 Notice Sent", filtered.sum())
+        with st.expander("Show Restaurants"):
+            st.dataframe(df[filtered][["id", "restaurant_name", "notice_status"]])
 
-    # 6. No Notice Sent or Resent
-    elif option == "No Notice Sent or Resent":
-        filtered = df[df["notice_status"].isna() | ~df["notice_status"].str.lower().str.contains("sent|resent", na=False)]
-        st.metric("📭 No Notice Sent or Resent", len(filtered))
-        st.dataframe(filtered[["id", "restaurant_name", "notice_status"]])
+    # QUERY 6: No Notice Sent or Resent
+    elif query == "No Notice Sent or Resent":
+        filtered = ~df["notice_status"].fillna("").str.lower().str.contains("sent|resent")
+        st.metric("📭 No Notice Sent", filtered.sum())
+        with st.expander("Show Restaurants"):
+            st.dataframe(df[filtered][["id", "restaurant_name", "notice_status"]])
+
 
 # ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
