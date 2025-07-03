@@ -11,6 +11,7 @@ from io import BytesIO
 from PIL import Image, ExifTags
 from io import StringIO
 
+
 #from fpdf import FPDF
 
 # --- Page Setup ---
@@ -325,6 +326,78 @@ elif section == "Data Browser":
         full_df = get_full_data(selected_table_name)
         st.markdown(f"### 📊 Full Dataset: {tables[selected_table_name]} ({len(full_df)} rows)")
         st.dataframe(full_df)
+
+    
+
+    st.title("🔍 Enhanced NTN / Compliance Explorer")
+
+    option = st.selectbox("Choose a Query", [
+        "Total New NTNs Count",
+        "List of Restaurants with New NTNs",
+        "List of Restaurants with Old NTNs",
+        "List of All NTNs (Old + New)",
+        "List of Restaurants by Address",
+        "List by Compliance Status"
+    ])
+
+    # 1. Total New NTNs Count
+    if option == "Total New NTNs Count":
+        count_query = supabase.table("enhanced_treated_restaurants") \
+            .select("New_NTN", count="exact") \
+            .not_('New_NTN', 'is', None)
+        count = count_query.execute().count
+        st.metric("✅ Total New NTNs", count)
+
+    # 2. List of Restaurants with New NTNs
+    elif option == "List of Restaurants with New NTNs":
+        data = supabase.table("enhanced_treated_restaurants") \
+            .select("id, restaurant_name, New_NTN") \
+            .not_('New_NTN', 'is', None) \
+            .limit(1000).execute()
+        df = pd.DataFrame(data.data)
+        st.dataframe(df)
+
+    # 3. List of Restaurants with Old NTNs
+    elif option == "List of Restaurants with Old NTNs":
+        data = supabase.table("enhanced_treated_restaurants") \
+            .select("id, restaurant_name, ntn") \
+            .not_('ntn', 'is', None) \
+            .limit(1000).execute()
+        df = pd.DataFrame(data.data)
+        st.dataframe(df)
+
+    # 4. List of All NTNs
+    elif option == "List of All NTNs (Old + New)":
+        data = supabase.table("enhanced_treated_restaurants") \
+            .select("id, restaurant_name, ntn, New_NTN") \
+            .or_("ntn.is.not.null,New_NTN.is.not.null") \
+            .limit(1000).execute()
+        df = pd.DataFrame(data.data)
+        st.dataframe(df)
+
+    # 5. Search by Address (Dynamic Filter)
+    elif option == "List of Restaurants by Address":
+        address_query = st.text_input("Enter partial address (e.g., DHA or MM Alam):")
+        if address_query:
+            data = supabase.table("enhanced_treated_restaurants") \
+                .select("id, restaurant_name, restaurant_address") \
+                .ilike('restaurant_address', f'%{address_query}%') \
+                .limit(1000).execute()
+            df = pd.DataFrame(data.data)
+            st.dataframe(df)
+
+    # 6. Filter by Compliance
+    elif option == "List by Compliance Status":
+        compliance_choice = st.selectbox("Choose Status", [
+            "Compliant", "Non-Compliant", "Partially Compliant", "Unverified"
+        ])
+        data = supabase.table("enhanced_treated_restaurants") \
+            .select("id, restaurant_name, compliance_status") \
+            .eq("compliance_status", compliance_choice) \
+            .limit(1000).execute()
+        df = pd.DataFrame(data.data)
+        st.dataframe(df)
+
 
 
 # ---------------------- Restaurant Profile Header ----------------------
