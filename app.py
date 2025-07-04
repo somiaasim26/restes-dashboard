@@ -434,17 +434,30 @@ elif section == "Restaurant Profile":
     unregistered_df = df[df["compliance_status"] == "Unregistered"]
     filers_df = df[df["compliance_status"] == "Filed"]
 
+    # --- Compliance Summary Buttons ---
     st.markdown("### 📊 Monthly Compliance Summary")
+
+    # Columns to display
+    summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "new_ntn"]
+
+    registered_df = df[df["compliance_status"] == "Registered"]
+    unregistered_df = df[df["compliance_status"] == "Unregistered"]
+    filers_df = df[df["compliance_status"] == "Filed"]
+
     col1, col2, col3 = st.columns(3)
+
     with col1:
         if st.button(f"✅ Registered ({len(registered_df)})"):
-            st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
+            st.dataframe(registered_df[summary_cols], use_container_width=True)
+
     with col2:
         if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-            st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
+            st.dataframe(unregistered_df[summary_cols], use_container_width=True)
+
     with col3:
         if st.button(f"🧾 Filers ({len(filers_df)})"):
-            st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
+            st.dataframe(filers_df[summary_cols], use_container_width=True)
+
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
