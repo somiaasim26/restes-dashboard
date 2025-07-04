@@ -457,6 +457,15 @@ elif section == "Restaurant Profile":
         filers_df = df[df["compliance_status"].str.lower() == "filed"]
 
         st.markdown("### 📊 Monthly Compliance Summary")
+        # 🚨 TEMP DEBUGGING OUTPUT
+        st.write("🧪 Officer ID:", officer_id)
+        st.write("🧪 DataFrame shape after filtering:", df.shape)
+        st.write("🧪 Sample of df:", df.head(3))
+        st.write("🧪 Registered Count:", len(registered_df))
+        st.write("🧪 Unregistered Count:", len(unregistered_df))
+        st.write("🧪 Filers Count:", len(filers_df))
+
+
         col1, col2, col3 = st.columns(3)
 
         with col1:
