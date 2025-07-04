@@ -420,12 +420,13 @@ elif section == "Restaurant Profile":
     try:
         # ✅ Load only needed fields with proper casing and quotes for Postgres
         df = pd.DataFrame(
-            supabase.table("enhanced_treated_restaurants")
-            .select("id, restaurant_name, restaurant_address, compliance_status, officer_id, ntn, all_ntns, \"New_NTN\"")
-            .limit(5000)
-            .execute()
-            .data
-        )
+        supabase.table("enhanced_treated_restaurants")
+        .select("id, restaurant_name, restaurant_address, compliance_status, officer_id, ntn, all_ntns, new_ntn")
+        .limit(5000)
+        .execute()
+        .data
+    )
+
 
         # 🧠 Officer mapping
         officer_ids = {
