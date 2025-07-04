@@ -553,7 +553,8 @@ elif section == "Restaurant Profile":
             st.session_state.rest_index = 0  # Wrap around
 
         # Force rerun with new selection
-        st.experimental_rerun()
+        st.rerun()
+
 
     # Force-select the dropdown value (IMPORTANT: must match dropdown key!)
     selected_label = st.selectbox(
