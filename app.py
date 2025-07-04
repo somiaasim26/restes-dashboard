@@ -333,7 +333,6 @@ elif section == "Data Browser":
     
 ############################################################
 
-
     # Choose Table
     tables = ["enhanced_treated_restaurants", "treated_restaurant_data", "new_ntn_mappings"]
     selected_table = st.selectbox("📄 Choose a table to explore", tables)
@@ -354,7 +353,6 @@ elif section == "Data Browser":
 
     # Query builder
     query = supabase.table(selected_table).select(f"id, restaurant_name, {selected_column}")
-
     if selected_column:
         if operator == "IS NULL":
             query = query.filter(selected_column, "is", None)
@@ -367,7 +365,7 @@ elif section == "Data Browser":
         elif operator == "ILIKE":
             query = query.ilike(selected_column, f"%{value}%")
 
-    # Execute
+    # Execute primary table query
     try:
         results = query.limit(1000).execute()
         df = pd.DataFrame(results.data)
@@ -378,10 +376,27 @@ elif section == "Data Browser":
         st.success(f"✅ {len(df)} records found")
         if selected_column in df.columns:
             distinct_count = df[selected_column].nunique(dropna=True)
-            st.info(f"🧮 Unique `{selected_column}` values: {distinct_count}")
+            st.info(f"🧮 Unique {selected_column} values: {distinct_count}")
 
     except Exception as e:
         st.error(f"❌ Query failed: {e}")
+
+    # ➕ Additional Section: View All NTNs by Officer
+    with st.expander("👮 View NTNs by Officer ID", expanded=False):
+        try:
+            officer_ntn_query = supabase.table("all_ntns").select("officer_id, ntn, restaurant_name, id, address").execute()
+            officer_df = pd.DataFrame(officer_ntn_query.data)
+
+            if not officer_df.empty:
+                for officer_id in officer_df["officer_id"].dropna().unique():
+                    with st.expander(f"Officer {officer_id} – NTNs", expanded=False):
+                        subset = officer_df[officer_df["officer_id"] == officer_id]
+                        st.dataframe(subset.reset_index(drop=True), use_container_width=True)
+            else:
+                st.warning("⚠️ No NTN data available in `all_ntns` table.")
+
+        except Exception as e:
+            st.error(f"❌ Failed to fetch NTNs: {e}")
 
 # ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
