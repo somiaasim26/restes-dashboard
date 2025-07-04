@@ -479,7 +479,7 @@ elif section == "Restaurant Profile":
 
         if st.session_state.show_matched_csv:
             try:
-                matched_data = supabase.table("matched_restaurant_data").select("*").limit(5000).execute().data
+                matched_data = supabase.table("revist_restaurant_data_off2").select("*").limit(5000).execute().data
                 matched_df = pd.DataFrame(matched_data)
 
                 matched_df = matched_df.rename(columns={
