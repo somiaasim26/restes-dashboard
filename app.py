@@ -333,27 +333,36 @@ elif section == "Data Browser":
     
 ############################################################
 
-    # Choose Table
+        # --- Choose Table ---
     tables = ["enhanced_treated_restaurants", "treated_restaurant_data", "new_ntn_mappings"]
     selected_table = st.selectbox("📄 Choose a table to explore", tables)
 
-    # Sample columns
+    # --- Sample columns for filtering ---
     sample = supabase.table(selected_table).select("*").limit(1).execute()
     columns = list(sample.data[0].keys()) if sample.data else []
     if not columns:
         st.warning("⚠️ This table has no data.")
         st.stop()
 
-    with st.expander("🔍 Add Filter Condition", expanded=True):
-        selected_column = st.selectbox("Filter 1: Column (Required)", columns)
-        operator = st.selectbox("Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"])
-        value = ""
-        if operator not in ["", "IS NULL", "IS NOT NULL"]:
-            value = st.text_input("Value (Optional)")
+    # --- Load Full Table Option ---
+    load_all = st.checkbox("⬇️ Load full table (ignores filters)", value=False)
 
-    # Query builder
-    query = supabase.table(selected_table).select(f"id, restaurant_name, {selected_column}")
-    if selected_column:
+    if not load_all:
+        with st.expander("🔍 Add Filter Condition", expanded=True):
+            selected_column = st.selectbox("Filter 1: Column (Required)", columns)
+            operator = st.selectbox("Operator (Optional)", ["", "=", "!=", "ILIKE", "IS NULL", "IS NOT NULL"])
+            value = ""
+            if operator not in ["", "IS NULL", "IS NOT NULL"]:
+                value = st.text_input("Value (Optional)")
+    else:
+        selected_column = None
+        operator = None
+        value = None
+
+    # --- Query Builder ---
+    query = supabase.table(selected_table).select("*")  # All fields
+
+    if not load_all and selected_column:
         if operator == "IS NULL":
             query = query.filter(selected_column, "is", None)
         elif operator == "IS NOT NULL":
@@ -365,38 +374,40 @@ elif section == "Data Browser":
         elif operator == "ILIKE":
             query = query.ilike(selected_column, f"%{value}%")
 
-    # Execute primary table query
+    # --- Execute Query ---
     try:
         results = query.limit(1000).execute()
         df = pd.DataFrame(results.data)
 
-        st.subheader("📊 Table Preview (ID + Name + Selected Column)")
+        st.subheader("📊 Table Preview")
         st.dataframe(df, use_container_width=True)
-
         st.success(f"✅ {len(df)} records found")
-        if selected_column in df.columns:
-            distinct_count = df[selected_column].nunique(dropna=True)
-            st.info(f"🧮 Unique {selected_column} values: {distinct_count}")
+
+        if not load_all and selected_column in df.columns:
+            st.info(f"🧮 Unique {selected_column} values: {df[selected_column].nunique(dropna=True)}")
 
     except Exception as e:
         st.error(f"❌ Query failed: {e}")
 
-    # ➕ Additional Section: View All NTNs by Officer
+    # --- View All NTNs by Officer ---
     with st.expander("👮 View NTNs by Officer ID", expanded=False):
         try:
-            officer_ntn_query = supabase.table("all_ntns").select("officer_id, ntn, restaurant_name, id, address").execute()
+            # ⚠️ Update this table name to your actual Supabase table
+            correct_ntn_table = "your_actual_ntn_table_name"
+
+            officer_ntn_query = supabase.table(correct_ntn_table).select("officer_id, ntn, restaurant_name, id, address").execute()
             officer_df = pd.DataFrame(officer_ntn_query.data)
 
             if not officer_df.empty:
                 for officer_id in officer_df["officer_id"].dropna().unique():
                     with st.expander(f"Officer {officer_id} – NTNs", expanded=False):
-                        subset = officer_df[officer_df["officer_id"] == officer_id]
-                        st.dataframe(subset.reset_index(drop=True), use_container_width=True)
+                        st.dataframe(officer_df[officer_df["officer_id"] == officer_id], use_container_width=True)
             else:
-                st.warning("⚠️ No NTN data available in `all_ntns` table.")
+                st.warning("⚠️ No NTN data available in the specified table.")
 
         except Exception as e:
             st.error(f"❌ Failed to fetch NTNs: {e}")
+
 
 # ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
