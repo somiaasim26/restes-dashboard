@@ -413,10 +413,9 @@ elif section == "Data Browser":
 elif section == "Restaurant Profile":
 
     st.title("📋 Restaurant Summary Profile")
-    st.markdown("## 🚨 DEBUG: Restaurant Profile block is ACTIVE")
 
     try:
-        # ✅ Load data with correct field names (use lowercase for Supabase)
+        # Load main restaurant data
         df = pd.DataFrame(
             supabase.table("enhanced_treated_restaurants")
             .select('id, restaurant_name, restaurant_address, compliance_status, officer_id, ntn, all_ntns, "New_NTN"')
@@ -425,7 +424,16 @@ elif section == "Restaurant Profile":
             .data
         )
 
-        # Officer mapping
+        # Load survey data
+        survey_df = pd.DataFrame(
+            supabase.table("surveydata_treatmentgroup")
+            .select("*")
+            .limit(5000)
+            .execute()
+            .data
+        )
+
+        # Officer filter
         officer_ids = {
             "haali1@live.com": "3",
             "kamranpra@gmail.com": "2",
@@ -433,28 +441,20 @@ elif section == "Restaurant Profile":
         }
         officer_id = officer_ids.get(user_email)
 
-        st.write("👤 Logged in as:", user_email)
-        st.write("🎯 Officer ID mapped:", officer_id)
-
         if officer_id:
             df = df[df["officer_id"] == officer_id]
             st.info(f"Showing restaurants for Officer {officer_id}")
         else:
             st.info("Showing all restaurants (admin view)")
 
-        # Confirm available columns
-        st.write("📋 Available Columns:", df.columns.tolist())
-        st.write("🧪 Sample Rows:", df.head(3))
-
-        # Columns to display in buttons
-        summary_cols = ["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]
+        # Define and validate display columns
+        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN"]
         display_cols = [col for col in summary_cols if col in df.columns]
-        st.write("✅ Columns to display:", display_cols)
 
-        # Compliance groups
-        registered_df = df[df["compliance_status"].str.lower() == "Registered"]
-        unregistered_df = df[df["compliance_status"].str.lower() == "Unregistered"]
-        filers_df = df[df["compliance_status"].str.lower() == "Filed"]
+        # Compliance categories
+        registered_df = df[df["compliance_status"].str.lower() == "registered"]
+        unregistered_df = df[df["compliance_status"].str.lower() == "unregistered"]
+        filers_df = df[df["compliance_status"].str.lower() == "filed"]
 
         st.markdown("### 📊 Monthly Compliance Summary")
         col1, col2, col3 = st.columns(3)
@@ -471,35 +471,9 @@ elif section == "Restaurant Profile":
             if st.button(f"🧾 Filers ({len(filers_df)})"):
                 st.dataframe(filers_df[display_cols], use_container_width=True)
 
-        # ➕ NEW: NTN Search
-        st.markdown("### 🔎 Search by NTN")
-        ntn_input = st.text_input("Enter full or partial NTN", max_chars=20)
-
-        if st.button("🔍 Search Restaurants by NTN"):
-            if not ntn_input.strip():
-                st.warning("Please enter an NTN.")
-            else:
-                search_cols = ["ntn", "all_ntns", "New_NTN"]
-                available_cols = [col for col in search_cols if col in df.columns]
-
-                if not available_cols:
-                    st.error("No NTN columns found in the data.")
-                else:
-                    ntn_matches = pd.DataFrame()
-                    for col in available_cols:
-                        matches = df[df[col].astype(str).str.contains(ntn_input.strip(), case=False, na=False)]
-                        ntn_matches = pd.concat([ntn_matches, matches])
-
-                    ntn_matches = ntn_matches.drop_duplicates()
-
-                    if ntn_matches.empty:
-                        st.info("No restaurants found with that NTN.")
-                    else:
-                        st.success(f"✅ Found {len(ntn_matches)} matching restaurants")
-                        st.dataframe(ntn_matches[["id", "restaurant_name", "restaurant_address"] + available_cols], use_container_width=True)
-
     except Exception as e:
         st.error(f"❌ Failed to load restaurant data: {e}")
+
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
