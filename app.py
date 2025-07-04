@@ -534,35 +534,31 @@ elif section == "Restaurant Profile":
     st.subheader(f"🏪 {selected_name}")
 
     # ---------------------- NEXT BUTTON LOGIC ----------------------
-    # Cache dropdown list
+
+    # -----------------------------------------
     if "rest_dropdown_list" not in st.session_state:
         st.session_state.rest_dropdown_list = rest_df["label"].tolist()
 
-    # Track index in session
     if "rest_index" not in st.session_state:
         st.session_state.rest_index = 0
 
-    # If user selects manually, update index
+    # Sync index to selected_label if dropdown used
     if selected_label in st.session_state.rest_dropdown_list:
         st.session_state.rest_index = st.session_state.rest_dropdown_list.index(selected_label)
 
-    # Show 'Next Restaurant' button
-    if st.button("➡️ Next Restaurant"):
+    # Next button logic
+    if st.button("📘 Next Restaurant"):
         st.session_state.rest_index += 1
         if st.session_state.rest_index >= len(st.session_state.rest_dropdown_list):
-            st.session_state.rest_index = 0  # Wrap around
+            st.session_state.rest_index = 0
 
-        # Force rerun with new selection
+        # Update label and rerun
+        selected_label = st.session_state.rest_dropdown_list[st.session_state.rest_index]
+        st.session_state["selected_label"] = selected_label  # force next render to pick it
         st.rerun()
 
-
-    # Force-select the dropdown value (IMPORTANT: must match dropdown key!)
-    selected_label = st.selectbox(
-        "🔍 Search by ID or Name",
-        st.session_state.rest_dropdown_list,
-        index=st.session_state.rest_index,
-        key="restaurant_dropdown"
-    )
+    # Final selected values for rest of the code to work
+    selected_label = st.session_state.rest_dropdown_list[st.session_state.rest_index]
     selected_id = selected_label.split(" - ")[0].strip()
     selected_name = selected_label.split(" - ")[1].strip()
 
