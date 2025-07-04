@@ -452,9 +452,9 @@ elif section == "Restaurant Profile":
         st.write("✅ Columns to display:", display_cols)
 
         # Compliance groups
-        registered_df = df[df["compliance_status"].str.lower() == "registered"]
-        unregistered_df = df[df["compliance_status"].str.lower() == "unregistered"]
-        filers_df = df[df["compliance_status"].str.lower() == "filed"]
+        registered_df = df[df["compliance_status"].str.lower() == "Registered"]
+        unregistered_df = df[df["compliance_status"].str.lower() == "Unregistered"]
+        filers_df = df[df["compliance_status"].str.lower() == "Filed"]
 
         st.markdown("### 📊 Monthly Compliance Summary")
         col1, col2, col3 = st.columns(3)
