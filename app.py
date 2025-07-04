@@ -443,7 +443,7 @@ elif section == "Restaurant Profile":
     registered_df = df[df["compliance_status"] == "Registered"]
     unregistered_df = df[df["compliance_status"] == "Unregistered"]
     filers_df = df[df["compliance_status"] == "Filed"]
-#####
+
     col1, col2, col3 = st.columns(3)
 
     with col1:
