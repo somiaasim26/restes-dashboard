@@ -533,6 +533,39 @@ elif section == "Restaurant Profile":
 
     st.subheader(f"🏪 {selected_name}")
 
+        # Prepare dropdown list with an extra option
+    rest_labels = rest_df["id"].astype(str) + " - " + rest_df["restaurant_name"].fillna("")
+    rest_labels = rest_labels.tolist()
+
+    # Cache dropdown list
+    if "rest_dropdown_list" not in st.session_state:
+        st.session_state.rest_dropdown_list = rest_labels
+
+    # Add a trigger option at end
+    options = rest_labels + ["▶ Go to Next Restaurant"]
+
+    # Sync current selection
+    if "rest_index" not in st.session_state:
+        st.session_state.rest_index = 0
+
+    # Create dropdown
+    selected_label = st.selectbox("🔍 Search by ID or Name", options, index=st.session_state.rest_index)
+
+    # Handle "Go to Next" logic
+    if selected_label == "▶ Go to Next Restaurant":
+        st.session_state.rest_index += 1
+        if st.session_state.rest_index >= len(rest_labels):
+            st.session_state.rest_index = 0
+        st.rerun()
+
+    # Update index if real restaurant selected
+    elif selected_label in rest_labels:
+        st.session_state.rest_index = rest_labels.index(selected_label)
+
+    # Final parsed values
+    selected_id = rest_labels[st.session_state.rest_index].split(" - ")[0].strip()
+    selected_name = rest_labels[st.session_state.rest_index].split(" - ")[1].strip()
+
 
     # ---------------------- IMAGE SECTION ----------------------
     from PIL import Image, ExifTags
