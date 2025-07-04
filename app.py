@@ -414,65 +414,53 @@ elif section == "Restaurant Profile":
 
     st.title("📋 Restaurant Summary Profile")
 
-    try:
-        # Load main restaurant data
-        df = pd.DataFrame(
-            supabase.table("enhanced_treated_restaurants")
-            .select('id, restaurant_name, restaurant_address, compliance_status, officer_id, ntn, all_ntns, "New_NTN"')
-            .limit(5000)
-            .execute()
-            .data
-        )
+    # ---------------------- Cached Data Load ----------------------
+    @st.cache_resource(show_spinner=False)
+    def load_enhanced_data():
+        enhanced = supabase.table("enhanced_treated_restaurants").select("*").limit(10000).execute().data
+        survey = supabase.table("surveydata_treatmentgroup").select("*").limit(10000).execute().data
+        return pd.DataFrame(enhanced), pd.DataFrame(survey)
 
-        # Load survey data
-        survey_df = pd.DataFrame(
-            supabase.table("surveydata_treatmentgroup")
-            .select("*")
-            .limit(5000)
-            .execute()
-            .data
-        )
+    df, survey_df = load_enhanced_data()
 
-        # Officer filter
-        officer_ids = {
-            "haali1@live.com": "3",
-            "kamranpra@gmail.com": "2",
-            "saudatiq90@gmail.com": "1"
-        }
-        officer_id = officer_ids.get(user_email)
+    # ---------------------- Officer Mapping ----------------------
+    officer_ids = {
+        "haali1@live.com": "3",
+        "kamranpra@gmail.com": "2",
+        "saudatiq90@gmail.com": "1"
+    }
+    officer_id = officer_ids.get(user_email)
 
-        if officer_id:
-            df = df[df["officer_id"] == officer_id]
-            st.info(f"Showing restaurants for Officer {officer_id}")
-        else:
-            st.info("Showing all restaurants (admin view)")
+    if officer_id:
+        df = df[df["officer_id"] == officer_id]
+        st.info(f"Showing restaurants for Officer {officer_id}")
+    else:
+        st.info("Showing all restaurants (admin view)")
 
-        # Define and validate display columns
-        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN"]
-        display_cols = [col for col in summary_cols if col in df.columns]
+    # ---------------------- Compliance Summary Buttons ----------------------
+    registered_df = df[df["compliance_status"].str.lower() == "registered"]
+    unregistered_df = df[df["compliance_status"].str.lower() == "unregistered"]
+    filers_df = df[df["compliance_status"].str.lower() == "filed"]
 
-        # --- Compliance Summary Buttons ---
-        registered_df = df[df["compliance_status"] == "Registered"]
-        unregistered_df = df[df["compliance_status"] == "Unregistered"]
-        filers_df = df[df["compliance_status"] == "Filed"]
+    summary_cols = ["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]
 
-        st.markdown("### 📊 Monthly Compliance Summary")
-        col1, col2, col3 = st.columns(3)
+    st.markdown("### 📊 Monthly Compliance Summary")
+    col1, col2, col3 = st.columns(3)
 
-        with col1:
-            if st.button(f"✅ Registered ({len(registered_df)})"):
-                st.dataframe(registered_df[display_cols], use_container_width=True)
+    with col1:
+        if st.button(f"✅ Registered ({len(registered_df)})"):
+            safe_cols = [col for col in summary_cols if col in registered_df.columns]
+            st.dataframe(registered_df[safe_cols], use_container_width=True)
 
-        with col2:
-            if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-                st.dataframe(unregistered_df[display_cols], use_container_width=True)
+    with col2:
+        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
+            safe_cols = [col for col in summary_cols if col in unregistered_df.columns]
+            st.dataframe(unregistered_df[safe_cols], use_container_width=True)
 
-        with col3:
-            if st.button(f"🧾 Filers ({len(filers_df)})"):
-                st.dataframe(filers_df[display_cols], use_container_width=True)
-
-    except Exception as e:
-        st.error(f"❌ Failed to load restaurant data: {e}")
+    with col3:
+        if st.button(f"🧾 Filers ({len(filers_df)})"):
+            safe_cols = [col for col in summary_cols if col in filers_df.columns]
+            st.dataframe(filers_df[safe_cols], use_container_width=True)
 
 
     # --- Restaurant Selector ---
