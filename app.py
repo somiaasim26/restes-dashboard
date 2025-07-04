@@ -451,10 +451,10 @@ elif section == "Restaurant Profile":
         summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN"]
         display_cols = [col for col in summary_cols if col in df.columns]
 
-        # Compliance categories
-        registered_df = df[df["compliance_status"].str.lower() == "registered"]
-        unregistered_df = df[df["compliance_status"].str.lower() == "unregistered"]
-        filers_df = df[df["compliance_status"].str.lower() == "filed"]
+        # --- Compliance Summary Buttons ---
+        registered_df = df[df["compliance_status"] == "Registered"]
+        unregistered_df = df[df["compliance_status"] == "Unregistered"]
+        filers_df = df[df["compliance_status"] == "Filed"]
 
         st.markdown("### 📊 Monthly Compliance Summary")
         col1, col2, col3 = st.columns(3)
