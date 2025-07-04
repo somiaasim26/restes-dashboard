@@ -415,14 +415,14 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
     
     try:
-        df = pd.DataFrame(
-            supabase.table("enhanced_treated_restaurants").select("*").limit(5000).execute().data
-        )
-        
+        # 🚀 Load data from enhanced table
+        raw_data = supabase.table("enhanced_treated_restaurants").select("*").limit(5000).execute().data
+        df = pd.DataFrame(raw_data)
+
+        # 🔍 Debug: show all available columns
         st.write("📋 Available Columns:", df.columns.tolist())
 
-
-        # Detect officer
+        # 🧠 Map officer
         officer_ids = {
             "haali1@live.com": "3",
             "kamranpra@gmail.com": "2",
@@ -433,38 +433,56 @@ elif section == "Restaurant Profile":
         if officer_id:
             df = df[df["officer_id"] == officer_id]
             st.info(f"Showing restaurants for Officer {officer_id}")
+        else:
+            st.info("Showing all restaurants (admin view)")
 
-        # Define which columns to show (including correct case)
+        # 🧾 Desired columns — try both capitalized and lowercase
         summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN", "new_ntn"]
-        display_cols = [col for col in summary_cols if col in df.columns]
+        lowercase_cols = [col.lower() for col in df.columns]
+        display_cols = [col for col in summary_cols if col.lower() in lowercase_cols]
 
+        # 🔁 Adjust column names if needed (case-insensitive mapping)
+        matched_cols = []
+        for col in display_cols:
+            for real_col in df.columns:
+                if real_col.lower() == col.lower():
+                    matched_cols.append(real_col)
+                    break
 
-        # Split data by compliance status
-        registered_df = df[df["compliance_status"] == "Registered"]
-        unregistered_df = df[df["compliance_status"] == "Unregistered"]
-        filers_df = df[df["compliance_status"] == "Filed"]
+        st.write("✅ Columns that will display:", matched_cols)
+
+        # 📊 Compliance groups
+        registered_df = df[df["compliance_status"].str.lower() == "registered"]
+        unregistered_df = df[df["compliance_status"].str.lower() == "unregistered"]
+        filers_df = df[df["compliance_status"].str.lower() == "filed"]
 
         st.markdown("### 📊 Monthly Compliance Summary")
         col1, col2, col3 = st.columns(3)
 
-        st.write("✅ Columns to display:", display_cols)
-
-
         with col1:
             if st.button(f"✅ Registered ({len(registered_df)})"):
-                st.dataframe(registered_df[display_cols], use_container_width=True)
+                if matched_cols:
+                    st.dataframe(registered_df[matched_cols], use_container_width=True)
+                else:
+                    st.warning("No valid columns to display.")
 
         with col2:
             if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-                st.dataframe(unregistered_df[display_cols], use_container_width=True)
+                if matched_cols:
+                    st.dataframe(unregistered_df[matched_cols], use_container_width=True)
+                else:
+                    st.warning("No valid columns to display.")
 
         with col3:
             if st.button(f"🧾 Filers ({len(filers_df)})"):
-                st.dataframe(filers_df[display_cols], use_container_width=True)
-         
+                if matched_cols:
+                    st.dataframe(filers_df[matched_cols], use_container_width=True)
+                else:
+                    st.warning("No valid columns to display.")
 
     except Exception as e:
         st.error(f"❌ Failed to load enhanced restaurant data: {e}")
+
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
