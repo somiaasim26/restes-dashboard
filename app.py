@@ -459,10 +459,9 @@ elif section == "Restaurant Profile":
             st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]])
 
 
-    except Exception as e:
-        st.error(f"❌ Failed to load restaurant data: {e}")
 
-#----------------------- Restaurant Selector -----------------------------------------------------------------------
+
+    # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
     if user_email in officer_ids:
         officer_id = officer_ids[user_email]
