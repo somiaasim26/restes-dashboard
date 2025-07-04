@@ -417,6 +417,8 @@ elif section == "Restaurant Profile":
 
     df = dfs["treated_restaurant_data"]
     survey_df = dfs["surveydata_treatmentgroup"]
+    
+    # Detect officer
     officer_ids = {
         "haali1@live.com": "3",
         "kamranpra@gmail.com": "2",
@@ -424,39 +426,45 @@ elif section == "Restaurant Profile":
     }
     officer_id = officer_ids.get(user_email)
 
-    # Filter for officer
-    if officer_id:
-        df = df[df["officer_id"] == officer_id]
-        st.info(f"Showing restaurants for Officer {officer_id}")
-    
-    # --- Compliance Summary Buttons ---
-    registered_df = df[df["compliance_status"] == "Registered"]
-    unregistered_df = df[df["compliance_status"] == "Unregistered"]
-    filers_df = df[df["compliance_status"] == "Filed"]
+    # 📦 Load from enhanced_treated_restaurants for NTN data
+    if section == "Restaurant Profile":
+        if "enhanced_treated_restaurants" not in dfs:
+            dfs["enhanced_treated_restaurants"] = pd.DataFrame(
+                supabase.table("enhanced_treated_restaurants").select("*").limit(5000).execute().data
+            )
 
-    # --- Compliance Summary Buttons ---
-    st.markdown("### 📊 Monthly Compliance Summary")
+        df = dfs["enhanced_treated_restaurants"]
+        survey_df = dfs["surveydata_treatmentgroup"]
+        
+        # Officer filter
+        if officer_id:
+            df = df[df["officer_id"] == officer_id]
+            st.info(f"Showing restaurants for Officer {officer_id}")
 
-    # Columns to display
-    summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "new_ntn"]
+        # --- Compliance Summary Buttons ---
+        st.markdown("### 📊 Monthly Compliance Summary")
 
-    registered_df = df[df["compliance_status"] == "Registered"]
-    unregistered_df = df[df["compliance_status"] == "Unregistered"]
-    filers_df = df[df["compliance_status"] == "Filed"]
+        # Columns to show
+        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "new_ntn"]
+        display_cols = [col for col in summary_cols if col in df.columns]
 
-    col1, col2, col3 = st.columns(3)
+        registered_df = df[df["compliance_status"] == "Registered"]
+        unregistered_df = df[df["compliance_status"] == "Unregistered"]
+        filers_df = df[df["compliance_status"] == "Filed"]
 
-    with col1:
-        if st.button(f"✅ Registered ({len(registered_df)})"):
-            st.dataframe(registered_df[summary_cols], use_container_width=True)
+        col1, col2, col3 = st.columns(3)
 
-    with col2:
-        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-            st.dataframe(unregistered_df[summary_cols], use_container_width=True)
+        with col1:
+            if st.button(f"✅ Registered ({len(registered_df)})"):
+                st.dataframe(registered_df[display_cols], use_container_width=True)
 
-    with col3:
-        if st.button(f"🧾 Filers ({len(filers_df)})"):
-            st.dataframe(filers_df[summary_cols], use_container_width=True)
+        with col2:
+            if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
+                st.dataframe(unregistered_df[display_cols], use_container_width=True)
+
+        with col3:
+            if st.button(f"🧾 Filers ({len(filers_df)})"):
+                st.dataframe(filers_df[display_cols], use_container_width=True)
 
 
     # --- Restaurant Selector ---
