@@ -418,6 +418,9 @@ elif section == "Restaurant Profile":
         df = pd.DataFrame(
             supabase.table("enhanced_treated_restaurants").select("*").limit(5000).execute().data
         )
+        
+        st.write("📋 Available Columns:", df.columns.tolist())
+
 
         # Detect officer
         officer_ids = {
@@ -432,8 +435,9 @@ elif section == "Restaurant Profile":
             st.info(f"Showing restaurants for Officer {officer_id}")
 
         # Define which columns to show (including correct case)
-        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN"]
+        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN", "new_ntn"]
         display_cols = [col for col in summary_cols if col in df.columns]
+
 
         # Split data by compliance status
         registered_df = df[df["compliance_status"] == "Registered"]
@@ -442,6 +446,9 @@ elif section == "Restaurant Profile":
 
         st.markdown("### 📊 Monthly Compliance Summary")
         col1, col2, col3 = st.columns(3)
+
+        st.write("✅ Columns to display:", display_cols)
+
 
         with col1:
             if st.button(f"✅ Registered ({len(registered_df)})"):
@@ -454,11 +461,10 @@ elif section == "Restaurant Profile":
         with col3:
             if st.button(f"🧾 Filers ({len(filers_df)})"):
                 st.dataframe(filers_df[display_cols], use_container_width=True)
+         
 
     except Exception as e:
         st.error(f"❌ Failed to load enhanced restaurant data: {e}")
-
-
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
