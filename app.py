@@ -419,7 +419,7 @@ elif section == "Restaurant Profile":
         # ✅ Load data with correct field names (use lowercase for Supabase)
         df = pd.DataFrame(
             supabase.table("enhanced_treated_restaurants")
-            .select("id, restaurant_name, restaurant_address, compliance_status, officer_id, ntn, all_ntns, new_ntn")
+            .select('id, restaurant_name, restaurant_address, compliance_status, officer_id, ntn, all_ntns, "New_NTN"')
             .limit(5000)
             .execute()
             .data
@@ -447,7 +447,7 @@ elif section == "Restaurant Profile":
         st.write("🧪 Sample Rows:", df.head(3))
 
         # Columns to display in buttons
-        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "new_ntn"]
+        summary_cols = ["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]
         display_cols = [col for col in summary_cols if col in df.columns]
         st.write("✅ Columns to display:", display_cols)
 
@@ -479,7 +479,7 @@ elif section == "Restaurant Profile":
             if not ntn_input.strip():
                 st.warning("Please enter an NTN.")
             else:
-                search_cols = ["ntn", "all_ntns", "new_ntn"]
+                search_cols = ["ntn", "all_ntns", "New_NTN"]
                 available_cols = [col for col in search_cols if col in df.columns]
 
                 if not available_cols:
