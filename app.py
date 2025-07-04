@@ -414,16 +414,19 @@ elif section == "Restaurant Profile":
 
     st.title("📋 Restaurant Summary Profile")
 
-    # ---------------------- Cached Data Load ----------------------
+    # ---------------------- Load base data ----------------------
+    df = dfs["treated_restaurant_data"]
+    survey_df = dfs["surveydata_treatmentgroup"]
+
+    # ---------------------- Cached NTN Data from Enhanced Table ----------------------
     @st.cache_resource(show_spinner=False)
-    def load_enhanced_data():
-        enhanced = supabase.table("enhanced_treated_restaurants").select("*").limit(10000).execute().data
-        survey = supabase.table("surveydata_treatmentgroup").select("*").limit(10000).execute().data
-        return pd.DataFrame(enhanced), pd.DataFrame(survey)
+    def load_ntn_fields():
+        ntn_data = supabase.table("enhanced_treated_restaurants").select("id, ntn, all_ntns, \"New_NTN\"").limit(10000).execute().data
+        return pd.DataFrame(ntn_data)
 
-    df, survey_df = load_enhanced_data()
+    ntn_df = load_ntn_fields()
 
-    # ---------------------- Officer Mapping ----------------------
+    # ---------------------- Officer filtering ----------------------
     officer_ids = {
         "haali1@live.com": "3",
         "kamranpra@gmail.com": "2",
@@ -432,36 +435,36 @@ elif section == "Restaurant Profile":
     officer_id = officer_ids.get(user_email)
 
     if officer_id:
-        df = df[df["officer_id"] == officer_id]
+        df = df[df["officer_id"].astype(str) == officer_id]
         st.info(f"Showing restaurants for Officer {officer_id}")
-    else:
-        st.info("Showing all restaurants (admin view)")
 
-    # ---------------------- Compliance Summary Buttons ----------------------
-    registered_df = df[df["compliance_status"].str.lower() == "registered"]
-    unregistered_df = df[df["compliance_status"].str.lower() == "unregistered"]
-    filers_df = df[df["compliance_status"].str.lower() == "filed"]
-
-    summary_cols = ["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]
+    # ---------------------- Compliance Summary ----------------------
+    registered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "registered"]
+    unregistered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "unregistered"]
+    filers_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "filed"]
 
     st.markdown("### 📊 Monthly Compliance Summary")
     col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button(f"✅ Registered ({len(registered_df)})"):
-            safe_cols = [col for col in summary_cols if col in registered_df.columns]
-            st.dataframe(registered_df[safe_cols], use_container_width=True)
+            st.dataframe(registered_df[["id", "restaurant_name", "restaurant_address"]])
 
     with col2:
         if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-            safe_cols = [col for col in summary_cols if col in unregistered_df.columns]
-            st.dataframe(unregistered_df[safe_cols], use_container_width=True)
+            st.dataframe(unregistered_df[["id", "restaurant_name", "restaurant_address"]])
 
     with col3:
         if st.button(f"🧾 Filers ({len(filers_df)})"):
-            safe_cols = [col for col in summary_cols if col in filers_df.columns]
-            st.dataframe(filers_df[safe_cols], use_container_width=True)
+            st.dataframe(filers_df[["id", "restaurant_name", "restaurant_address"]])
 
+    # ---------------------- NEW: NTN Columns Button ----------------------
+    if st.button("🧮 View NTN Columns from Enhanced Table"):
+        merged_df = df[["id", "restaurant_name", "restaurant_address"]].copy()
+        merged_df["id"] = merged_df["id"].astype(str)
+        ntn_df["id"] = ntn_df["id"].astype(str)
+        merged_df = merged_df.merge(ntn_df, on="id", how="left")
+        st.dataframe(merged_df[["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]], use_container_width=True)
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
