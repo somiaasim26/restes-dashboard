@@ -465,6 +465,45 @@ elif section == "Restaurant Profile":
         ntn_df["id"] = ntn_df["id"].astype(str)
         merged_df = merged_df.merge(ntn_df, on="id", how="left")
         st.dataframe(merged_df[["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]], use_container_width=True)
+    
+    # ------------------- 📋 Matched CSV Expand/Collapse -------------------
+    if officer_id == "2":
+        st.markdown("Revist Restaurants List")
+
+        if "show_matched_csv" not in st.session_state:
+            st.session_state.show_matched_csv = False
+
+        toggle_label = "🔽 Expand CSV Table" if not st.session_state.show_matched_csv else "🔼 Collapse CSV Table"
+        if st.button(toggle_label):
+            st.session_state.show_matched_csv = not st.session_state.show_matched_csv
+
+        if st.session_state.show_matched_csv:
+            try:
+                matched_data = supabase.table("matched_restaurant_data").select("*").limit(5000).execute().data
+                matched_df = pd.DataFrame(matched_data)
+
+                matched_df = matched_df.rename(columns={
+                    "id": "ID",
+                    "latitude": "Latitude",
+                    "longitude": "Longitude",
+                    "restaurant_name": "Name",
+                    "restaurant_address": "Address",
+                    "compliance_status": "Status",
+                    "officer_id": "Officer",
+                    "ntn": "NTN",
+                    "comments": "Comments",
+                    "contact_number_gm": "Contact",
+                    "combined_contact_info": "Combined Contact",
+                    "notice_sent": "Notice Sent",
+                    "matched": "Matched",
+                    "revist": "Revisit"
+                })
+
+                st.dataframe(matched_df, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"❌ Failed to load matched CSV data: {e}")
+
 
     # --- Restaurant Selector ---
     # ---(Officer Filtered to Unregistered Only) ---
