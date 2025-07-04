@@ -415,8 +415,8 @@ elif section == "Restaurant Profile":
     st.title("📋 Restaurant Summary Profile")
 
 
-    df = dfs["treated_restaurant_data"]
-    survey_df = dfs["surveydata_treatmentgroup"]
+    #df = dfs["treated_restaurant_data"]
+    #survey_df = dfs["surveydata_treatmentgroup"]
     
     # Detect officer
     officer_ids = {
@@ -445,7 +445,7 @@ elif section == "Restaurant Profile":
         st.markdown("### 📊 Monthly Compliance Summary")
 
         # Columns to show
-        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "new_ntn"]
+        summary_cols = ["id", "restaurant_name", "restaurant_address", "all_ntns", "ntn", "New_NTN"]
         display_cols = [col for col in summary_cols if col in df.columns]
 
         registered_df = df[df["compliance_status"] == "Registered"]
