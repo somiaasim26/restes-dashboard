@@ -5,5 +5,7 @@ pandas
 requests
 supabase
 fpdf==1.7.2
+matplotlib
+
 
 
