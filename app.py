@@ -155,14 +155,16 @@ section = st.sidebar.radio("📁 Navigate", allowed_sections)
 
 # ---------------------- Current Stats / KPI ----------------------
 # ---------------------- Officer-Wise Compliance Summary ----------------------
+# ---------------------- Current Stats / KPI ----------------------
 if section == "Current Stats / KPI":
 
     st.title("📊 PRA System Status")
 
-    treated_df = dfs["treated_restaurant_data"].copy()
-    followup_df = dfs["notice_followup_tracking"].copy()
+    # --- Load and Clean Treated and Follow-up Data ---
+    treated_df = dfs.get("treated_restaurant_data", pd.DataFrame()).copy()
+    followup_df = dfs.get("notice_followup_tracking", pd.DataFrame()).copy()
 
-    # Clean IDs and types
+    # Drop nulls and clean ID fields
     treated_df = treated_df.dropna(subset=["id", "officer_id"])
     treated_df["id"] = treated_df["id"].astype(str).str.strip()
     treated_df["officer_id"] = treated_df["officer_id"].astype(str).str.strip()
@@ -177,30 +179,24 @@ if section == "Current Stats / KPI":
     officer_ids = sorted(treated_df["officer_id"].unique())
 
     for oid in officer_ids:
-        officer_df = treated_df[treated_df["officer_id"] == oid]
+        officer_df = treated_df[treated_df["officer_id"] == oid].copy()
         assigned_ids = officer_df["id"].tolist()
-        total_restaurants = len(officer_df)
+        total_assigned = len(officer_df)
 
-        officer_followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)]
-
+        officer_followups = followup_df[followup_df["restaurant_id"].isin(assigned_ids)].copy()
         returned = officer_followups[officer_followups["delivery_status"].str.lower() == "returned"].copy()
 
-        # Must have either corrected name or corrected address
-        # Resend-worthy: must have either a non-empty correct name or correct address (not just 'None' or blank)
+        # Resend-worthy = has valid corrected name or address
         resend_df = returned[
-            (returned["correct_name"].fillna("").str.strip().str.lower() != "") &
-            (returned["correct_name"].fillna("").str.strip().str.lower() != "none")
-            |
-            (returned["correct_address"].fillna("").str.strip().str.lower() != "") &
-            (returned["correct_address"].fillna("").str.strip().str.lower() != "none")
-        ]
-
+            ((returned["correct_name"].str.strip().str.lower() != "") & (returned["correct_name"].str.strip().str.lower() != "none")) |
+            ((returned["correct_address"].str.strip().str.lower() != "") & (returned["correct_address"].str.strip().str.lower() != "none"))
+        ].copy()
 
         st.markdown("---")
-        with st.expander(f"🧑 Officer ID: {oid} — Assigned: {total_restaurants}, Returned: {len(returned)}, Re-send: {len(resend_df)}", expanded=False):
+        with st.expander(f"🧑 Officer ID: {oid} — Assigned: {total_assigned}, Returned: {len(returned)}, Re-send: {len(resend_df)}", expanded=False):
 
             col1, col2, col3 = st.columns(3)
-            col1.metric("📋 Assigned", total_restaurants)
+            col1.metric("📋 Assigned", total_assigned)
             col2.metric("📬 Returned Notices", len(returned))
             col3.metric("📨 To Re-send", len(resend_df))
 
@@ -215,41 +211,40 @@ if section == "Current Stats / KPI":
                 ]].reset_index(drop=True))
             else:
                 st.info("✅ No returned notices requiring correction.")
-    
-    # --- Filing Status Summary (Grouped Count with Drilldown) ---
+
+    # ---------------------- Status Change Section ----------------------
     st.markdown("## 🔄 Latest Formality Status")
 
     try:
-        followup_df = dfs["notice_followup_tracking"].copy()
-        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]].copy()
+        followup_df = dfs.get("notice_followup_tracking", pd.DataFrame()).copy()
+        treated_df = dfs.get("treated_restaurant_data", pd.DataFrame())[["id", "restaurant_name", "restaurant_address", "compliance_status"]].copy()
 
         followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
         treated_df["id"] = treated_df["id"].astype(str).str.strip()
 
         combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("").str.strip().str.lower()
-        combined["compliance_status"] = combined["compliance_status"].fillna("").str.strip().str.lower()
+        combined["latest_formality_status"] = combined.get("latest_formality_status", "").fillna("").astype(str).str.strip().str.lower()
+        combined["compliance_status"] = combined.get("compliance_status", "").fillna("").astype(str).str.strip().str.lower()
 
-        combined["changed"] = combined["latest_formality_status"] != combined["compliance_status"]
-        changed = combined[combined["changed"] & (combined["latest_formality_status"] != "")]
+        combined["changed"] = (combined["latest_formality_status"] != combined["compliance_status"]) & (combined["latest_formality_status"] != "")
+        changed = combined[combined["changed"]].copy()
 
         st.markdown(f"### 📦 Status Change Summary — Total Changes: {len(changed)}")
 
         for status_key, group_df in changed.groupby("latest_formality_status"):
             label = {
-                "filer": "🟢 Started Filing",
-                "none": "⚪ No Change"
-            }.get(status_key.lower(), f"🔄 {status_key.title()}")
+                "filed": "🟢 Started Filing",
+                "registered": "🟠 Registered",
+                "unregistered": "🔴 Unregistered"
+            }.get(status_key.lower(), f"🔁 {status_key.title()}")
 
-            with st.expander(f"{label} — {len(group_df)}"):
+            with st.expander(f"{label} — {len(group_df)}", expanded=False):
                 st.dataframe(group_df[[
                     "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
                 ]].reset_index(drop=True))
 
     except Exception as e:
         st.error(f"❌ Could not load summary: {e}")
-
-
 
 #------------------------------------------------------------------------------------------------------------------
 
