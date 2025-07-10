@@ -215,6 +215,41 @@ if section == "Current Stats / KPI":
                 ]].reset_index(drop=True))
             else:
                 st.info("✅ No returned notices requiring correction.")
+    
+    # --- Filing Status Summary (Grouped Count with Drilldown) ---
+    st.markdown("## 🔄 Latest Formality Status")
+
+    try:
+        followup_df = dfs["notice_followup_tracking"].copy()
+        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]].copy()
+
+        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
+        treated_df["id"] = treated_df["id"].astype(str).str.strip()
+
+        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
+        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("").str.strip().str.lower()
+        combined["compliance_status"] = combined["compliance_status"].fillna("").str.strip().str.lower()
+
+        combined["changed"] = combined["latest_formality_status"] != combined["compliance_status"]
+        changed = combined[combined["changed"] & (combined["latest_formality_status"] != "")]
+
+        st.markdown(f"### 📦 Status Change Summary — Total Changes: {len(changed)}")
+
+        for status_key, group_df in changed.groupby("latest_formality_status"):
+            label = {
+                "filer": "🟢 Started Filing",
+                "none": "⚪ No Change"
+            }.get(status_key.lower(), f"🔄 {status_key.title()}")
+
+            with st.expander(f"{label} — {len(group_df)}"):
+                st.dataframe(group_df[[
+                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
+                ]].reset_index(drop=True))
+
+    except Exception as e:
+        st.error(f"❌ Could not load summary: {e}")
+
+
 
 #------------------------------------------------------------------------------------------------------------------
 
