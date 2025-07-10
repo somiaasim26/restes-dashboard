@@ -216,29 +216,8 @@ if section == "Current Stats / KPI":
                 st.info("✅ No returned notices requiring correction.")
 
 
-    # --- Load Enhanced Table ---
-    enhanced_df = dfs["enhanced_treated_restaurants"][["formality_old", "formality_new"]].copy()
-
-    # --- Clean and normalize ---
-    enhanced_df = enhanced_df.fillna("?")
-    enhanced_df["formality_old"] = enhanced_df["formality_old"].str.strip().str.lower()
-    enhanced_df["formality_new"] = enhanced_df["formality_new"].str.strip().str.lower()
-
-    # --- Group and Pivot ---
-    summary = enhanced_df.groupby(["formality_old", "formality_new"]).size().reset_index(name="count")
-    pivot = summary.pivot(index="formality_old", columns="formality_new", values="count").fillna(0)
-
-    # --- Bar Plot ---
-    st.markdown("## 🧭 Formality Transitions (Old vs New Status)")
-    st.markdown("This shows how restaurants shifted categories from old to new statuses.")
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    pivot.plot(kind="bar", stacked=True, ax=ax)
-    ax.set_xlabel("Old Formality Status")
-    ax.set_ylabel("Number of Restaurants")
-    ax.set_title("Category-wise Formality Status Change")
-    ax.legend(title="New Status", bbox_to_anchor=(1.05, 1), loc='upper left')
-    st.pyplot(fig)
+   
+    
 
 #------------------------------------------------------------------------------------------------------------------
 
