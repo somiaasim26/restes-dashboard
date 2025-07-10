@@ -10,6 +10,8 @@ from PIL import Image
 from io import BytesIO
 from PIL import Image, ExifTags
 from io import StringIO
+import matplotlib.pyplot as plt
+
 
 
 #from fpdf import FPDF
@@ -213,80 +215,30 @@ if section == "Current Stats / KPI":
             else:
                 st.info("✅ No returned notices requiring correction.")
 
-    # --- Filing Status Summary (Grouped Count with Drilldown) ---
-    st.markdown("## 🔄 Latest Formality Status")
 
-    try:
-        followup_df = dfs["notice_followup_tracking"].copy()
-        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]].copy()
+    # --- Load Enhanced Table ---
+    enhanced_df = dfs["enhanced_treated_restaurants"][["formality_old", "formality_new"]].copy()
 
-        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
-        treated_df["id"] = treated_df["id"].astype(str).str.strip()
+    # --- Clean and normalize ---
+    enhanced_df = enhanced_df.fillna("?")
+    enhanced_df["formality_old"] = enhanced_df["formality_old"].str.strip().str.lower()
+    enhanced_df["formality_new"] = enhanced_df["formality_new"].str.strip().str.lower()
 
-        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["latest_formality_status"] = combined["latest_formality_status"].fillna("").str.strip().str.lower()
-        combined["compliance_status"] = combined["compliance_status"].fillna("").str.strip().str.lower()
+    # --- Group and Pivot ---
+    summary = enhanced_df.groupby(["formality_old", "formality_new"]).size().reset_index(name="count")
+    pivot = summary.pivot(index="formality_old", columns="formality_new", values="count").fillna(0)
 
-        combined["changed"] = combined["latest_formality_status"] != combined["compliance_status"]
-        changed = combined[combined["changed"] & (combined["latest_formality_status"] != "")]
+    # --- Bar Plot ---
+    st.markdown("## 🧭 Formality Transitions (Old vs New Status)")
+    st.markdown("This shows how restaurants shifted categories from old to new statuses.")
 
-        st.markdown(f"### 📦 Status Change Summary — Total Changes: `{len(changed)}`")
-
-        for status_key, group_df in changed.groupby("latest_formality_status"):
-            label = {
-                "filer": "🟢 Started Filing",
-                "none": "⚪ No Change"
-            }.get(status_key.lower(), f"🔄 {status_key.title()}")
-
-            with st.expander(f"{label} — {len(group_df)}"):
-                st.dataframe(group_df[[
-                    "restaurant_id", "restaurant_name", "restaurant_address", "compliance_status", "latest_formality_status"
-                ]].reset_index(drop=True))
-
-    except Exception as e:
-        st.error(f"❌ Could not load summary: {e}")
-
-    # --- Filing Status Summary (Compact View) ---
-    st.markdown("## 🧾 Formality Change All Restaurants")
-
-    try:
-        followup_df = dfs["notice_followup_tracking"]
-        treated_df = dfs["treated_restaurant_data"][["id", "restaurant_name", "restaurant_address", "compliance_status"]]
-
-        followup_df["restaurant_id"] = followup_df["restaurant_id"].astype(str).str.strip()
-        treated_df["id"] = treated_df["id"].astype(str).str.strip()
-
-        combined = pd.merge(followup_df, treated_df, left_on="restaurant_id", right_on="id", how="left")
-        combined["changed"] = combined["compliance_status"].fillna("").str.strip().str.lower() != combined["latest_formality_status"].fillna("").str.strip().str.lower()
-        changed = combined[combined["changed"]].copy()
-
-        total_changed = len(changed)
-        st.markdown(f"### 🧾 Restaurants With Status Changes: <span style='background:#dcfce7;padding:5px 10px;border-radius:5px;font-weight:bold;'>{total_changed}</span>", unsafe_allow_html=True)
-
-        restaurant_labels = changed.apply(lambda row: f"{row['restaurant_name']} ({row['id']})", axis=1).tolist()
-        selected_label = st.selectbox("🔍 Select a Restaurant", restaurant_labels)
-
-        selected_id = selected_label.split("(")[-1].replace(")", "").strip()
-        row = changed[changed["id"] == selected_id].iloc[0]
-
-        st.markdown(f"""
-        <div style='
-            border:1px solid #ddd;
-            padding:10px;
-            margin-top:10px;
-            border-radius:6px;
-            background-color:#f9f9f9;
-        '>
-            <b>🏪 {row['restaurant_name']}</b> <br>
-            📍 <i>{row['restaurant_address']}</i> <br>
-            🆔 ID: <code>{row['id']}</code> <br><br>
-            <b>Previous Status:</b> <span style='color:#d97706;'>{row['compliance_status']}</span><br>
-            <b>Latest Status:</b> <span style='color:#16a34a;'>{row['latest_formality_status']}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"❌ Could not load compact summary: {e}")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    pivot.plot(kind="bar", stacked=True, ax=ax)
+    ax.set_xlabel("Old Formality Status")
+    ax.set_ylabel("Number of Restaurants")
+    ax.set_title("Category-wise Formality Status Change")
+    ax.legend(title="New Status", bbox_to_anchor=(1.05, 1), loc='upper left')
+    st.pyplot(fig)
 
 #------------------------------------------------------------------------------------------------------------------
 
