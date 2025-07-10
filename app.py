@@ -12,7 +12,6 @@ from PIL import Image, ExifTags
 from io import StringIO
 
 
-#####
 
 #from fpdf import FPDF
 
