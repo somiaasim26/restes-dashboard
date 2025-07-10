@@ -10,7 +10,6 @@ from PIL import Image
 from io import BytesIO
 from PIL import Image, ExifTags
 from io import StringIO
-import matplotlib.pyplot as plt
 
 
 #####
