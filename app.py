@@ -421,37 +421,31 @@ elif section == "Restaurant Profile":
 
     # --- Compliance Summary Buttons ---
     # --- Compliance Filtering ---
-    df["compliance_status"] = df["compliance_status"].fillna("").str.strip().str.lower()
+    # ---------------------- Accurate Compliance Summary ----------------------
+    registered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "registered"]
+    unregistered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "unregistered"]
+    filers_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "filed"]
 
-    registered_df = df[df["compliance_status"] == "registered"]
-    unregistered_df = df[df["compliance_status"] == "unregistered"]
-    filers_df = df[df["compliance_status"] == "filed"]
+    st.markdown("### 📊 Monthly Compliance Summary")
+    col1, col2, col3 = st.columns(3)
 
     filter_key = "profile_filter"
     if filter_key not in st.session_state:
         st.session_state[filter_key] = "unregistered"
 
-    # Count of restaurants under current officer for each status
-    registered_count = len(registered_df)
-    unregistered_count = len(unregistered_df)
-    filers_count = len(filers_df)
-
-    # --- Compliance Summary Buttons ---
-    st.markdown("### 📊 Monthly Compliance Summary")
-    col1, col2, col3 = st.columns(3)
-
     with col1:
-        if st.button(f"✅ Registered ({registered_count})"):
+        if st.button(f"✅ Registered ({len(registered_df)})"):
             st.session_state[filter_key] = "registered"
     with col2:
-        if st.button(f"❌ Unregistered ({unregistered_count})"):
+        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
             st.session_state[filter_key] = "unregistered"
     with col3:
-        if st.button(f"🧾 Filers ({filers_count})"):
+        if st.button(f"🧾 Filers ({len(filers_df)})"):
             st.session_state[filter_key] = "filed"
 
-    # Final filtered dataset
-    filtered_df = df[df["compliance_status"] == st.session_state[filter_key]].reset_index(drop=True)
+    # Live filtering
+    filtered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == st.session_state[filter_key]]
+    filtered_df = filtered_df.reset_index(drop=True)
 
 
     if "profile_index" not in st.session_state:
