@@ -379,7 +379,17 @@ elif section == "Restaurant Profile":
     # Load base data from Supabase live
     @st.cache_resource(show_spinner=False)
     def load_restaurants():
-        return pd.DataFrame(supabase.table("treated_restaurant_data").select("*").limit(10000).execute().data)
+        offset = 0
+        batch_size = 1000
+        all_data = []
+        while True:
+            response = supabase.table("treated_restaurant_data").select("*").range(offset, offset + batch_size - 1).execute()
+            data = response.data or []
+            all_data.extend(data)
+            if len(data) < batch_size:
+                break
+            offset += batch_size
+        return pd.DataFrame(all_data)
 
     @st.cache_resource(show_spinner=False)
     def load_survey_data():
