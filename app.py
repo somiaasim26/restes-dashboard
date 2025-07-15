@@ -382,7 +382,7 @@ elif section == "Restaurant Profile":
 
     @st.cache_resource(show_spinner=False)
     def load_ntn_fields():
-        ntn_data = supabase.table("enhanced_treated_restaurants").select("id, ntn, all_ntns, New_NTN").limit(10000).execute().data
+        ntn_data = supabase.table("enhanced_treated_restaurants").select("id, ntn, all_ntns, new_ntn").limit(10000).execute().data
         return pd.DataFrame(ntn_data)
 
     df = load_restaurants()
@@ -466,7 +466,7 @@ elif section == "Restaurant Profile":
         merged["id"] = merged["id"].astype(str)
         ntn_df["id"] = ntn_df["id"].astype(str)
         joined = merged.merge(ntn_df, on="id", how="left")
-        st.dataframe(joined[["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "New_NTN"]])
+        st.dataframe(joined[["id", "restaurant_name", "restaurant_address", "ntn", "all_ntns", "new_ntn"]])
 
     # Survey info
     st.markdown("### 🏢 Survey Information")
