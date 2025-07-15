@@ -440,9 +440,9 @@ elif section == "Restaurant Profile":
         st.info(f"Showing restaurants for Officer {officer_id}")
 
     # --- Global counts (regardless of officer) ---
-    global_registered = df_all[df_all["compliance_status"] == "Registered"]
-    global_unregistered = df_all[df_all["compliance_status"] == "Unregistered"]
-    global_filers = df_all[df_all["compliance_status"] == "Filed"]
+    global_registered = df_all[df_all["compliance_status"] == "registered"]
+    global_unregistered = df_all[df_all["compliance_status"] == "unregistered"]
+    global_filers = df_all[df_all["compliance_status"] == "filed"]
 
     # --- User-level filtered restaurant set ---
     if "profile_filter" not in st.session_state:
