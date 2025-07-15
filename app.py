@@ -420,29 +420,39 @@ elif section == "Restaurant Profile":
         st.info(f"Showing restaurants for Officer {officer_id}")
 
     # --- Compliance Summary Buttons ---
-    registered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "registered"]
-    unregistered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "unregistered"]
-    filers_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "filed"]
+    # --- Compliance Filtering ---
+    df["compliance_status"] = df["compliance_status"].fillna("").str.strip().str.lower()
 
-    st.markdown("### 📊 Monthly Compliance Summary")
-    col1, col2, col3 = st.columns(3)
+    registered_df = df[df["compliance_status"] == "registered"]
+    unregistered_df = df[df["compliance_status"] == "unregistered"]
+    filers_df = df[df["compliance_status"] == "filed"]
 
     filter_key = "profile_filter"
     if filter_key not in st.session_state:
         st.session_state[filter_key] = "unregistered"
 
+    # Count of restaurants under current officer for each status
+    registered_count = len(registered_df)
+    unregistered_count = len(unregistered_df)
+    filers_count = len(filers_df)
+
+    # --- Compliance Summary Buttons ---
+    st.markdown("### 📊 Monthly Compliance Summary")
+    col1, col2, col3 = st.columns(3)
+
     with col1:
-        if st.button(f"✅ Registered ({len(registered_df)})"):
+        if st.button(f"✅ Registered ({registered_count})"):
             st.session_state[filter_key] = "registered"
     with col2:
-        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
+        if st.button(f"❌ Unregistered ({unregistered_count})"):
             st.session_state[filter_key] = "unregistered"
     with col3:
-        if st.button(f"🧾 Filers ({len(filers_df)})"):
+        if st.button(f"🧾 Filers ({filers_count})"):
             st.session_state[filter_key] = "filed"
 
-    filtered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == st.session_state[filter_key]]
-    filtered_df = filtered_df.reset_index(drop=True)
+    # Final filtered dataset
+    filtered_df = df[df["compliance_status"] == st.session_state[filter_key]].reset_index(drop=True)
+
 
     if "profile_index" not in st.session_state:
         st.session_state["profile_index"] = 0
