@@ -422,30 +422,48 @@ elif section == "Restaurant Profile":
     # --- Compliance Summary Buttons ---
     # --- Compliance Filtering ---
     # ---------------------- Accurate Compliance Summary ----------------------
-    registered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "registered"]
-    unregistered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "unregistered"]
-    filers_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == "filed"]
+        # --- Load ALL data (for counts) ---
+    df_all = load_restaurants()
+    df_all["compliance_status"] = df_all["compliance_status"].fillna("").str.strip().str.lower()
+
+    # --- Filter data for logged-in officer ---
+    df = df_all.copy()
+    officer_ids = {
+        "haali1@live.com": "3",
+        "kamranpra@gmail.com": "2",
+        "saudatiq90@gmail.com": "1"
+    }
+    officer_id = officer_ids.get(user_email)
+
+    if officer_id:
+        df = df[df["officer_id"].astype(str) == officer_id]
+        st.info(f"Showing restaurants for Officer {officer_id}")
+
+    # --- Global counts (regardless of officer) ---
+    global_registered = df_all[df_all["compliance_status"] == "registered"]
+    global_unregistered = df_all[df_all["compliance_status"] == "unregistered"]
+    global_filers = df_all[df_all["compliance_status"] == "filed"]
+
+    # --- User-level filtered restaurant set ---
+    if "profile_filter" not in st.session_state:
+        st.session_state["profile_filter"] = "unregistered"
 
     st.markdown("### 📊 Monthly Compliance Summary")
     col1, col2, col3 = st.columns(3)
 
-    filter_key = "profile_filter"
-    if filter_key not in st.session_state:
-        st.session_state[filter_key] = "unregistered"
-
     with col1:
-        if st.button(f"✅ Registered ({len(registered_df)})"):
-            st.session_state[filter_key] = "registered"
+        if st.button(f"✅ Registered ({len(global_registered)})"):
+            st.session_state["profile_filter"] = "registered"
     with col2:
-        if st.button(f"❌ Unregistered ({len(unregistered_df)})"):
-            st.session_state[filter_key] = "unregistered"
+        if st.button(f"❌ Unregistered ({len(global_unregistered)})"):
+            st.session_state["profile_filter"] = "unregistered"
     with col3:
-        if st.button(f"🧾 Filers ({len(filers_df)})"):
-            st.session_state[filter_key] = "filed"
+        if st.button(f"🧾 Filers ({len(global_filers)})"):
+            st.session_state["profile_filter"] = "filed"
 
-    # Live filtering
-    filtered_df = df[df["compliance_status"].fillna("").str.strip().str.lower() == st.session_state[filter_key]]
-    filtered_df = filtered_df.reset_index(drop=True)
+    # --- Filtered view for user display ---
+    filtered_df = df[df["compliance_status"] == st.session_state["profile_filter"]].reset_index(drop=True)
+
 
 
     if "profile_index" not in st.session_state:
