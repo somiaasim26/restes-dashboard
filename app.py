@@ -375,7 +375,7 @@ elif section == "Restaurant Profile":
     # ---------------------- Cached NTN Data from Enhanced Table ----------------------
     @st.cache_resource(show_spinner=False)
     def load_ntn_fields():
-        ntn_data = supabase.table("enhanced_treated_restaurants").select("id, ntn, all_ntns, \"New_NTN\"").limit(10000).execute().data
+        ntn_data = supabase.table("enhanced_treated_restaurants").select("id, ntn, all_ntns, new_ntn").limit(10000).execute().data
         return pd.DataFrame(ntn_data)
 
     ntn_df = load_ntn_fields()
