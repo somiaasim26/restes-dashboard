@@ -525,8 +525,8 @@ elif section == "Restaurant Profile":
         ["restaurant_name", selected_row.get("restaurant_name", "")],
         ["restaurant_address", selected_row.get("restaurant_address", "")],
         ["ntn", selected_row.get("ntn_final", "")],
-        ["Compliance Status (Old)", selected_row.get("formality_old", "")],
-        ["Compliance Status (New)", selected_row.get("formality_new", "")],
+        ["🔴Compliance Status (Old)", selected_row.get("formality_old", "")],
+        ["🟢Compliance Status (New)", selected_row.get("formality_new", "")],
         ["officer_id", selected_row.get("officer_id", "")],
         ["latitude", selected_row.get("latitude", "")],
         ["longitude", selected_row.get("longitude", "")]
@@ -546,10 +546,10 @@ elif section == "Restaurant Profile":
         "air_conditioner": "❄ Air Conditioning",
         "credit_debit_card_acceptance": "💳 Card Acceptance",
         "food_court": "🏬 In Food Court",
-        "gst": "💸 GST Amount",
-        "pre_tax_price": "💰 Pre-Tax Price",
-        "post_tax_price": "💰 Post-Tax Price",
-        "price_paid": "💸 Price Paid",
+        #"gst": "💸 GST Amount",
+        #"pre_tax_price": "💰 Pre-Tax Price",
+        #"post_tax_price": "💰 Post-Tax Price",
+        #"price_paid": "💸 Price Paid",
         "link": "🔗 Link",
         "contact_number": "📞 Contact Info"
     }
