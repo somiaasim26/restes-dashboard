@@ -546,7 +546,7 @@ elif section == "Restaurant Profile":
         "air_conditioner": "❄ Air Conditioning",
         "credit_debit_card_acceptance": "💳 Card Acceptance",
         "food_court": "🏬 In Food Court",
-        #"gst": "💸 GST Amount",
+        "gst": "💸 GST Amount",
         #"pre_tax_price": "💰 Pre-Tax Price",
         #"post_tax_price": "💰 Post-Tax Price",
         #"price_paid": "💸 Price Paid",
