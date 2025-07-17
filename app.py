@@ -10,6 +10,7 @@ from PIL import Image
 from io import BytesIO
 from PIL import Image, ExifTags
 from io import StringIO
+from functools import lru_cache
 
 
 
@@ -127,8 +128,20 @@ def load_final_treatment():
 dfs["final_treatment"] = load_final_treatment()
 
 # Show images and load them
-@st.cache_resource(show_spinner=False)
-def load_image_from_supabase(filename):
+# ✅ Preload and cache restaurant images
+@st.cache_data(show_spinner="Preloading restaurant images...")
+def preload_images(image_type: str, ids: list, limit: int = 150):
+    preloaded = {}
+    for rid in ids[:limit]:
+        filename = f"{rid}_{image_type}.jpg"
+        img = fetch_image_from_supabase(filename)
+        if img:
+            preloaded[rid] = img
+    return preloaded
+
+# ✅ Fetch individual image from Supabase
+@lru_cache(maxsize=500)
+def fetch_image_from_supabase(filename):
     try:
         url = f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
         response = requests.get(url)
@@ -147,9 +160,10 @@ def load_image_from_supabase(filename):
             except Exception:
                 pass
             return img
-    except Exception:
+    except:
         return None
     return None
+
 
 
 
