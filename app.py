@@ -421,7 +421,12 @@ elif section == "Restaurant Profile":
 
     # --- Filtered Restaurant Set ---
     df_all = load_restaurants()
-    df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
+    try:
+        df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
+    except KeyError:
+        st.error("⚠️ Column 'formality_old' not found in the table. Please check if it's spelled correctly or exists.")
+        st.stop()
+
     df = df_all.copy()
     if officer_id:
         df = df[df["officer_id"].astype(str) == officer_id]
