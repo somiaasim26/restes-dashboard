@@ -559,17 +559,17 @@ elif section == "Restaurant Profile":
     # --- Basic Info ---
     st.markdown("### 🗃️ Basic Info")
     info_df = pd.DataFrame([
-    ["id", current_row.get("id", "")],
-    ["restaurant_name", current_row.get("restaurant_name", "")],
-    ["restaurant_address", current_row.get("restaurant_address", "")],
-    ["ntn", current_row.get("ntn_final", "")],
-    ["🔴Compliance Status (Old)", current_row.get("formality_old", "")],
-    ["🟢Compliance Status (New)", current_row.get("formality_new", "")],
-    ["officer_id", current_row.get("officer_id", "")],
-    ["latitude", current_row.get("latitude", "")],
-    ["longitude", current_row.get("longitude", "")]
-], columns=["Field", "Value"])
-
+        ["id", selected_row.get("id", "")],
+        ["restaurant_name", selected_row.get("restaurant_name", "")],
+        ["restaurant_address", selected_row.get("restaurant_address", "")],
+        ["ntn", selected_row.get("ntn_final", "")],
+        ["🔴Compliance Status (Old)", selected_row.get("formality_old", "")],
+        ["🟢Compliance Status (New)", selected_row.get("formality_new", "")],
+        ["officer_id", current_row.get("officer_id", "")],
+        ["latitude", current_row.get("latitude", "")],
+        ["longitude", current_row.get("longitude", "")]
+    ], columns=["Field", "Value"])
+    st.table(info_df)
 
     # --- Survey Info (from final_treatment) ---
     st.markdown("### 🏢 Survey Information")
@@ -593,7 +593,6 @@ elif section == "Restaurant Profile":
     }
 
     row = current_row
-
     col1, col2 = st.columns(2)
     # List of allowed fields for survey info
     survey_fields = {
