@@ -124,6 +124,7 @@ tables = {
     "notice_skip_reasons": "Notice Skip Reasons",
     "enhanced_treated_restaurants": "Updates in Treatment",
     "new_ntn_mappings": "New NTNs",
+    "final_treatment": "final_treatment",
     "registered_ntn_data": "Officer-wise Registered Data",
     "s1_p1": "Survey 1 - P1", "s1_p2": "Survey 1 - P2", "s1_sec2": "Survey 1 - Sec2", "s1_sec3": "Survey 1 - Sec3",
     "s2_p1": "Survey 2 - P1", "s2_p2": "Survey 2 - P2", "s2_sec2": "Survey 2 - Sec2", "s2_sec3": "Survey 2 - Sec3"
