@@ -568,7 +568,7 @@ elif section == "Restaurant Profile":
     ["officer_id", current_row.get("officer_id", "")],
     ["latitude", current_row.get("latitude", "")],
     ["longitude", current_row.get("longitude", "")]
-    ], columns=["Field", "Value"])
+], columns=["Field", "Value"])
 
 
     # --- Survey Info (from final_treatment) ---
