@@ -486,9 +486,14 @@ elif section == "Restaurant Profile":
     search_options = build_search_list(df_filtered)
 
     # --- Search Dropdown ---
-    default_index = 0
-    if st.session_state["selected_label"] in search_options["label"].tolist():
-        default_index = search_options[search_options["label"] == st.session_state["selected_label"]].index[0]
+    label_list = search_options["label"].tolist()
+
+    # Safe default index (int), fallback to 0 if not found
+    try:
+        default_index = int(search_options[search_options["label"] == st.session_state["selected_label"]].index[0])
+    except:
+        default_index = 0
+
 
     selected_label = st.selectbox(
         "🔍 Search by ID or Name",
