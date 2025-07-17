@@ -570,7 +570,7 @@ elif section == "Restaurant Profile":
         ["longitude", current_row.get("longitude", "")]
     ], columns=["Field", "Value"])
     st.table(info_df)
-
+####
     # --- Survey Info (from final_treatment) ---
     st.markdown("### 🏢 Survey Information")
     label_map = {
