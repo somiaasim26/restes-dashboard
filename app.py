@@ -467,8 +467,8 @@ elif section == "Restaurant Profile":
     st.markdown("### 🔍 Filter Restaurants by Status")
     filter_map = {
         "registered": "🟢 Registered",
-        "unregistered": "🔴 Unregistered",
-        "filed": "🟠 Filed",
+        "unregistered": "❌ Unregistered",
+        "filed": "✅ Filed",
         "ntn": "📄 With NTN"
     }
     btn_cols = st.columns(len(filter_map))
