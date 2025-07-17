@@ -421,9 +421,10 @@ elif section == "Restaurant Profile":
 
     # --- Filtered Restaurant Set ---
     df_all = load_restaurants()
+    st.write("Columns in df_all:", df_all.columns.tolist())
+    
     try:
         df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
-        st.write("Columns in df_all:", df_all.columns.tolist())
 
     except KeyError:
         st.error("⚠️ Column 'formality_old' not found in the table. Please check if it's spelled correctly or exists.")
