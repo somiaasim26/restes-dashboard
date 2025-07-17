@@ -107,7 +107,7 @@ def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
         st.error(f"❌ Failed to load `{table_name}`: {e}")
         return pd.DataFrame()
 
-# ✅ Load final_treatment once and store in dfs
+#  Load final_treatment once and store in dfs
 @st.cache_data(show_spinner="Loading final treatment data...")
 def load_final_treatment():
     offset = 0
@@ -125,6 +125,32 @@ def load_final_treatment():
     return df
 
 dfs["final_treatment"] = load_final_treatment()
+
+# Show images and load them
+@st.cache_resource(show_spinner=False)
+def load_image_from_supabase(filename):
+    try:
+        url = f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            img = Image.open(BytesIO(response.content))
+            try:
+                for orientation in ExifTags.TAGS.keys():
+                    if ExifTags.TAGS[orientation] == 'Orientation':
+                        break
+                exif = img._getexif()
+                if exif:
+                    val = exif.get(orientation)
+                    if val == 3: img = img.rotate(180, expand=True)
+                    elif val == 6: img = img.rotate(270, expand=True)
+                    elif val == 8: img = img.rotate(90, expand=True)
+            except Exception:
+                pass
+            return img
+    except Exception:
+        return None
+    return None
+
 
 
 # --- Utility: Clean ID Columns ---
