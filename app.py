@@ -85,6 +85,9 @@ url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase = create_client(url, key)
 
+dfs = {}
+
+
 # --- Supabase Load with Pagination ---
 @st.cache_data
 def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
