@@ -511,7 +511,18 @@ elif section == "Restaurant Profile":
     except Exception:
         default_index = 0
 
-    selected_label = st.selectbox("🔎 Search by ID or Name", label_list, index=default_index, key="search_dropdown")
+    try:
+        default_index = label_list.index(st.session_state["selected_label"])
+    except:
+        default_index = 0
+
+    selected_label = st.selectbox(
+        "🔎 Search by ID or Name",
+        label_list,
+        index=default_index,
+        key="search_dropdown"
+    )
+
     st.session_state["selected_label"] = selected_label
 
     selected_id = selected_label.split(" - ")[0].strip()
