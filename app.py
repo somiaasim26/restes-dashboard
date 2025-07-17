@@ -494,41 +494,43 @@ elif section == "Restaurant Profile":
         st.stop()
 
     # --- Prepare Label List ---
+    # ✅ Clean label list (ensures no weird string issues)
+    search_df = filtered_df[["id", "restaurant_name"]].copy()
+    search_df["id"] = search_df["id"].astype(str).str.strip()
+    search_df["restaurant_name"] = search_df["restaurant_name"].astype(str).str.strip()
+    search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"]
+    search_df = search_df.reset_index(drop=True)
+
+    # ✅ Preload + cache first 150
     @st.cache_data
-    def get_label_list(df, preload_limit=150):
-        top = df.head(preload_limit).copy()
-        remaining = df.iloc[preload_limit:].copy()
-        top_labels = top["label"].tolist()
-        remaining_labels = remaining["label"].tolist()
-        return top_labels + sorted(set(remaining_labels) - set(top_labels))
+    def preload_search_labels(df, preload_limit=150):
+        top = df.head(preload_limit)["label"].tolist()
+        rest = df.iloc[preload_limit:]["label"].tolist()
+        return top + sorted(set(rest) - set(top))
 
-    label_list = get_label_list(filtered_df)
+    label_list = preload_search_labels(search_df)
 
-    # --- Highlight & Restore Selection ---
-    default_label = st.session_state.get("selected_label")
-    try:
-        default_index = label_list.index(default_label) if default_label in label_list else 0
-    except Exception:
-        default_index = 0
+    # ✅ Restore previous selection
+    selected_label = st.session_state.get("selected_label")
+    if selected_label not in label_list:
+        selected_label = label_list[0]
 
-    try:
-        default_index = label_list.index(st.session_state["selected_label"])
-    except:
-        default_index = 0
-
+    # ✅ Show selectbox with highlight
     selected_label = st.selectbox(
         "🔎 Search by ID or Name",
-        label_list,
-        index=default_index,
-        key="search_dropdown"
+        options=label_list,
+        index=label_list.index(selected_label),
+        key="restaurant_searchbox"
     )
 
+    # ✅ Store and update
     st.session_state["selected_label"] = selected_label
-
     selected_id = selected_label.split(" - ")[0].strip()
-    selected_index = filtered_df[filtered_df["id"] == selected_id].index
-    if not selected_index.empty:
-        st.session_state["profile_index"] = int(selected_index[0])
+    matching_index = search_df[search_df["id"] == selected_id].index
+
+    if not matching_index.empty:
+        st.session_state["profile_index"] = int(matching_index[0])
+
 
     # --- Navigation ---
     current_index = st.session_state["profile_index"]
