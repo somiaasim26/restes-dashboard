@@ -428,11 +428,12 @@ elif section == "Data Browser":
 
 
 # ---------------------- Restaurant Profile Header ----------------------
+# ---------------------- Restaurant Profile Header ----------------------
 elif section == "Restaurant Profile":
 
     st.title("📋 Restaurant Summary Profile")
 
-    # Officer ID Mapping
+    # --- Officer Mapping ---
     officer_ids = {
         "haali1@live.com": "3",
         "kamranpra@gmail.com": "2",
@@ -440,100 +441,107 @@ elif section == "Restaurant Profile":
     }
     officer_id = officer_ids.get(user_email)
 
-    # Final Treatment Data
+    # --- Load and Prepare Data ---
     df_all = dfs.get("final_treatment", pd.DataFrame()).copy()
     df_all.columns = df_all.columns.str.strip().str.lower()
-    df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
     df_all["id"] = df_all["id"].astype(str)
+    df_all["restaurant_name"] = df_all["restaurant_name"].astype(str)
+    df_all["label"] = df_all["id"] + " - " + df_all["restaurant_name"]
+    df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
+    df_all["ntn_final"] = df_all["ntn_final"].astype(str).str.strip()
 
-    # Officer-specific filter
-    df_all = df_all[df_all["officer_id"].astype(str) == officer_id]
+    # Officer filter
+    if officer_id:
+        df_all = df_all[df_all["officer_id"].astype(str) == officer_id]
 
-    # --- FILTER BUTTONS ---
-    # ------------------ 🔘 Filter Buttons ------------------
+    # --- Initialize Session State ---
+    for key, default in {
+        "profile_filter": "unregistered",
+        "profile_index": 0,
+        "selected_label": None
+    }.items():
+        if key not in st.session_state:
+            st.session_state[key] = default
+
+    # --- Filter Buttons ---
     st.markdown("### 🔍 Filter Restaurants by Status")
-
-    if "profile_filter" not in st.session_state:
-        st.session_state["profile_filter"] = "unregistered"
-    if "profile_index" not in st.session_state:
-        st.session_state["profile_index"] = 0
-    if "selected_label" not in st.session_state:
-        st.session_state["selected_label"] = None
-
-    status_buttons = {
+    filter_map = {
         "registered": "🟢 Registered",
         "unregistered": "🔴 Unregistered",
         "filed": "🟠 Filed",
         "ntn": "📄 With NTN"
     }
-    btn_cols = st.columns(len(status_buttons))
-
-    clicked_filter = None
-    for i, (key, label) in enumerate(status_buttons.items()):
+    btn_cols = st.columns(len(filter_map))
+    for i, (key, label) in enumerate(filter_map.items()):
         if btn_cols[i].button(label):
-            clicked_filter = key
+            st.session_state["profile_filter"] = key
+            st.session_state["profile_index"] = 0
+            st.session_state["selected_label"] = None
+            st.rerun()
 
-    if clicked_filter:
-        st.session_state["profile_filter"] = clicked_filter
-        st.session_state["profile_index"] = 0
-        st.session_state["selected_label"] = None  # Reset search
-        st.rerun()
-
-    # ------------------ 📋 Filter Data ------------------
-    current_filter = st.session_state["profile_filter"]
-    if current_filter == "ntn":
-        filtered_df = df_all[df_all["ntn_final"].notna() & (df_all["ntn_final"].astype(str).str.strip() != "")]
+    # --- Apply Filter ---
+    filt = st.session_state["profile_filter"]
+    if filt == "ntn":
+        filtered_df = df_all[df_all["ntn_final"].notna() & (df_all["ntn_final"] != "")]
     else:
-        filtered_df = df_all[df_all["formality_old"] == current_filter]
+        filtered_df = df_all[df_all["formality_old"] == filt]
 
     filtered_df = filtered_df.reset_index(drop=True)
     total_profiles = len(filtered_df)
+
     if total_profiles == 0:
-        st.warning("No restaurants match the selected filter.")
+        st.warning("No restaurants match this filter.")
         st.stop()
 
-    # ------------------ 🔍 Search Dropdown ------------------
-    search_df = filtered_df[["id", "restaurant_name"]].dropna().copy()
-    search_df["id"] = search_df["id"].astype(str)
-    search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"].fillna("")
-    label_list = search_df["label"].tolist()
-
-    # Preload for dropdown
+    # --- Prepare Label List ---
     @st.cache_data
-    def preload_labels(df, limit=150):
-        df_preload = df.head(limit).copy()
-        df_preload["label"] = df_preload["id"].astype(str) + " - " + df_preload["restaurant_name"].fillna("")
-        return df_preload["label"].tolist()
+    def get_label_list(df, preload_limit=150):
+        top = df.head(preload_limit).copy()
+        remaining = df.iloc[preload_limit:].copy()
+        top_labels = top["label"].tolist()
+        remaining_labels = remaining["label"].tolist()
+        return top_labels + sorted(set(remaining_labels) - set(top_labels))
 
-    label_list = preload_labels(search_df, limit=150) + sorted(set(label_list) - set(preload_labels(search_df, limit=150)))
+    label_list = get_label_list(filtered_df)
 
-    # Find current highlighted index
+    # --- Highlight & Restore Selection ---
+    default_label = st.session_state.get("selected_label")
     try:
-        default_index = int(search_df[search_df["label"] == st.session_state["selected_label"]].index[0])
-    except:
+        default_index = label_list.index(default_label) if default_label in label_list else 0
+    except Exception:
         default_index = 0
 
-    # Show dropdown
-    selected_label = st.selectbox("🔎 Search by ID or Name", label_list, index=default_index)
-
-    # Update session state
+    selected_label = st.selectbox("🔎 Search by ID or Name", label_list, index=default_index, key="search_dropdown")
     st.session_state["selected_label"] = selected_label
+
     selected_id = selected_label.split(" - ")[0].strip()
+    selected_index = filtered_df[filtered_df["id"] == selected_id].index
+    if not selected_index.empty:
+        st.session_state["profile_index"] = int(selected_index[0])
 
-    # Update profile index to match selected
-    matching_idx = search_df[search_df["id"] == selected_id].index
-    if not matching_idx.empty:
-        st.session_state["profile_index"] = int(matching_idx[0])
+    # --- Navigation ---
+    current_index = st.session_state["profile_index"]
+    current_row = filtered_df.iloc[current_index]
 
+    nav_col1, nav_col2 = st.columns(2)
+    with nav_col1:
+        if st.button("⏮ Back"):
+            st.session_state["profile_index"] = (current_index - 1) % total_profiles
+            selected_row = filtered_df.iloc[st.session_state["profile_index"]]
+            st.session_state["selected_label"] = selected_row["label"]
+            st.rerun()
 
+    with nav_col2:
+        if st.button("⏭ Next"):
+            st.session_state["profile_index"] = (current_index + 1) % total_profiles
+            selected_row = filtered_df.iloc[st.session_state["profile_index"]]
+            st.session_state["selected_label"] = selected_row["label"]
+            st.rerun()
 
-    # Manual Search
-    search_df = filtered_df[["id", "restaurant_name"]].dropna().copy()
-    search_df["id"] = search_df["id"].astype(str)
-    search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"].fillna("")
-    selected_label = st.selectbox("🔍 Search by ID or Name", search_df["label"].tolist(), index=default_index)
-    selected_id = selected_label.split(" - ")[0].strip()
-    selected_row = filtered_df[filtered_df["id"].astype(str) == selected_id].iloc[0]
+    # --- Display Selected Restaurant Header ---
+    st.subheader(f"🏪 {current_row.get('restaurant_name', '')}")
+    st.markdown(f"**Restaurant {current_index + 1} of {total_profiles}**")
+
 
     # --- Images ---
     st.markdown("### 🖼️ Restaurant Images")
