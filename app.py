@@ -512,7 +512,7 @@ elif section == "Restaurant Profile":
     for idx, (img_type, label) in enumerate(image_types.items()):
         with cols[idx]:
             st.markdown(f"#### {label}")
-            img = load_image_from_supabase(f"{selected_id}_{img_type}.jpg")
+            img = fetch_image_from_supabase(f"{selected_id}_{img_type}.jpg")
             if img:
                 st.image(img, use_container_width=True)
             else:
