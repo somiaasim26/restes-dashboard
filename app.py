@@ -556,8 +556,16 @@ elif section == "Restaurant Profile":
 
     row = selected_row
     col1, col2 = st.columns(2)
+    # List of allowed fields for survey info
+    survey_fields = {
+        "type_of_the_restaurant", "cuisine", "number_of_customers", "number_of_chairs",
+        "number_of_floors", "number_of_tables", "seating_arrangement", "air_conditioner",
+        "credit_debit_card_acceptance", "food_court", "link", "contact_number"
+    }
+
     for i, col in enumerate(row.index):
-        if pd.notna(row[col]) and col not in ["id", "restaurant_name", "restaurant_address", "ntn_final"]:
+        if col.lower() in survey_fields and pd.notna(row[col]):
+
             label = label_map.get(col.lower(), col.replace("_", " ").title())
             value = row[col]
             if col.lower() == "link":
