@@ -104,6 +104,26 @@ def load_table(table_name: str, columns: list = None, batch_size: int = 1000):
         st.error(f"❌ Failed to load `{table_name}`: {e}")
         return pd.DataFrame()
 
+# ✅ Load final_treatment once and store in dfs
+@st.cache_data(show_spinner="Loading final treatment data...")
+def load_final_treatment():
+    offset = 0
+    batch_size = 1000
+    all_rows = []
+    while True:
+        response = supabase.table("final_treatment").select("*").range(offset, offset + batch_size - 1).execute()
+        data = response.data or []
+        all_rows.extend(data)
+        if len(data) < batch_size:
+            break
+        offset += batch_size
+    df = pd.DataFrame(all_rows)
+    df.columns = df.columns.str.strip().str.lower()
+    return df
+
+dfs["final_treatment"] = load_final_treatment()
+
+
 # --- Utility: Clean ID Columns ---
 def clean_ids(df, id_cols):
     for col in id_cols:
@@ -377,62 +397,27 @@ elif section == "Restaurant Profile":
     }
     officer_id = officer_ids.get(user_email)
 
-    # Load from final_treatment instead of old tables
-    @st.cache_resource(show_spinner=False)
-    def load_restaurants():
-        offset = 0
-        batch_size = 1000
-        all_data = []
-        while True:
-            response = supabase.table("final_treatment").select("*").range(offset, offset + batch_size - 1).execute()
-            data = response.data or []
-            all_data.extend(data)
-            if len(data) < batch_size:
-                break
-            offset += batch_size
-        return pd.DataFrame(all_data)
-
-    @st.cache_resource(show_spinner=False)
-    def load_image_from_supabase(filename):
-        try:
-            url = f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
-            response = requests.get(url)
-            if response.status_code == 200:
-                img = Image.open(BytesIO(response.content))
-                try:
-                    for orientation in ExifTags.TAGS.keys():
-                        if ExifTags.TAGS[orientation] == 'Orientation':
-                            break
-                    exif = img._getexif()
-                    if exif:
-                        val = exif.get(orientation)
-                        if val == 3: img = img.rotate(180, expand=True)
-                        elif val == 6: img = img.rotate(270, expand=True)
-                        elif val == 8: img = img.rotate(90, expand=True)
-                except Exception: pass
-                return img
-        except: return None
-        return None
-
-    df = load_restaurants()
-    if officer_id:
-        df = df[df["officer_id"].astype(str) == officer_id]
-        st.info(f"Showing restaurants for Officer {officer_id}")
-
-    # --- Filtered Restaurant Set ---
-    df_all = load_restaurants()
-    st.write("Columns in df_all:", df_all.columns.tolist())
-    
-    try:
-        df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
-
-    except KeyError:
-        st.error("⚠️ Column 'formality_old' not found in the table. Please check if it's spelled correctly or exists.")
+    # ✅ Use cached final_treatment table
+    df_all = dfs.get("final_treatment", pd.DataFrame()).copy()
+    if df_all.empty:
+        st.error("❌ Failed to load data from final_treatment.")
         st.stop()
 
+    # Normalize column names to lowercase
+    df_all.columns = df_all.columns.str.strip().str.lower()
+
+    # Check and clean key column
+    if "formality_old" not in df_all.columns:
+        st.error("⚠️ Column 'formality_old' not found in final_treatment.")
+        st.stop()
+
+    df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
+
+    # Officer filter
     df = df_all.copy()
     if officer_id:
         df = df[df["officer_id"].astype(str) == officer_id]
+        st.info(f"Showing restaurants for Officer {officer_id}")
 
     # Filter logic
     if "profile_filter" not in st.session_state:
@@ -469,6 +454,7 @@ elif section == "Restaurant Profile":
             st.session_state["profile_index"] = (current_index + 1) % total_profiles
             st.rerun()
 
+    # Manual Search
     search_df = filtered_df[["id", "restaurant_name"]].dropna().copy()
     search_df["id"] = search_df["id"].astype(str)
     search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"].fillna("")
@@ -489,7 +475,7 @@ elif section == "Restaurant Profile":
             else:
                 st.info("Image not available.")
 
-    # --- Basic Info (NTN + Formality) ---
+    # --- Basic Info ---
     st.markdown("### 🗃️ Basic Info")
     info_df = pd.DataFrame([
         ["id", selected_row.get("id", "")],
@@ -524,6 +510,7 @@ elif section == "Restaurant Profile":
         "link": "🔗 Link",
         "contact_number": "📞 Contact Info"
     }
+
     row = selected_row
     col1, col2 = st.columns(2)
     for i, col in enumerate(row.index):
@@ -538,13 +525,14 @@ elif section == "Restaurant Profile":
                         <strong>{label}:</strong><br><a href="{value}" target="_blank">{value}</a>
                     </div>
                 """, unsafe_allow_html=True)
-            elif label:
+            else:
                 (col1 if i % 2 == 0 else col2).markdown(f"""
                     <div style='background-color: #f1f5f9; padding: 8px 12px;
                     border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #2563eb;'>
                         <strong>{label}:</strong> {value}
                     </div>
                 """, unsafe_allow_html=True)
+
 
 ##########################################################
 
