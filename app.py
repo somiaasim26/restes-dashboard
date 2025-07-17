@@ -522,8 +522,7 @@ elif section == "Restaurant Profile":
         index=label_list.index(selected_label),
         key="restaurant_searchbox"
     )
-    st.caption("ℹ️ Scroll to locate your selected item in the dropdown — highlighting is not supported.")
-
+    
 
     # ✅ Store and update
     st.session_state["selected_label"] = selected_label
