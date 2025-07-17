@@ -437,7 +437,7 @@ elif section == "Restaurant Profile":
     df_all["compliance_status"] = df_all["compliance_status"].fillna("").str.strip().str.lower()
 
     # --- Filter data for logged-in officer ---
-    df = df_all.copy()
+    df = df_all.copy()#
     officer_ids = {
         "haali1@live.com": "3",
         "kamranpra@gmail.com": "2",
@@ -447,7 +447,7 @@ elif section == "Restaurant Profile":
 
     if officer_id:
         df = df[df["officer_id"].astype(str) == officer_id]
-        st.info(f"Showing restaurants for Officer {officer_id}")
+        #st.info(f"Showing restaurants for Officer {officer_id}")
 
     # --- Global counts (regardless of officer) ---
     global_registered = df_all[df_all["compliance_status"] == "registered"]
