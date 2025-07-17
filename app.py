@@ -699,9 +699,12 @@ elif section == "Restaurant Profile":
     except Exception as e:
         st.error(f"❌ Could not load exportable data: {e}")
 
-        # ---------------------- CSV EXPORT ----------------------
+    
+    # ---------------------- CSV EXPORT ----------------------
     st.markdown("### 📥 Export Restaurant Data as CSV")
-    csv_data = df.merge(survey_df, on="id", how="left") if not survey_df.empty else df
+
+    # Use the filtered and officer-scoped df directly
+    csv_data = df.copy()
 
     if officer_id:
         if st.button("📤 Download Your Assigned Restaurants (CSV)"):
@@ -711,3 +714,4 @@ elif section == "Restaurant Profile":
         if st.button("📤 Download All Restaurants (CSV)"):
             csv = csv_data.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
+
