@@ -455,8 +455,10 @@ elif section == "Restaurant Profile":
     df_all["ntn_final"] = df_all["ntn_final"].astype(str).str.strip()
 
     # Officer filter
-    if officer_id:
+    # Filter only if officer-level access
+    if officer_id and user_email in special_access_users:
         df_all = df_all[df_all["officer_id"].astype(str) == officer_id]
+
 
     # --- Initialize Session State ---
     for key, default in {
