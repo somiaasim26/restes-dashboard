@@ -538,14 +538,23 @@ elif section == "Restaurant Profile":
         key="restaurant_searchbox"
     )
 
+    # ✅ Sync profile_index with dropdown (only if not just updated by nav)
+    if "profile_index" not in st.session_state or st.session_state["selected_label"] != selected_label:
+        matching_index = search_df[search_df["label"] == selected_label].index
+        if not matching_index.empty:
+            st.session_state["profile_index"] = int(matching_index[0])
+
+
     # ✅ Sync selected values
     st.session_state["selected_label"] = selected_label
     selected_id = label_map[selected_label]
 
     # ✅ Update profile index for nav + current_row
-    matching_index = filtered_df[filtered_df["id"] == selected_id].index
-    if not matching_index.empty:
-        st.session_state["profile_index"] = int(matching_index[0])
+    if "profile_index" not in st.session_state:
+        matching_index = filtered_df[filtered_df["id"] == selected_id].index
+        if not matching_index.empty:
+            st.session_state["profile_index"] = int(matching_index[0])
+
 
     # --- Navigation ---
     current_index = st.session_state["profile_index"]
@@ -557,13 +566,18 @@ elif section == "Restaurant Profile":
     nav_col1, nav_col2 = st.columns(2)
     with nav_col1:
         if st.button("⏮ Back"):
-            st.session_state["profile_index"] = (current_index - 1) % total_profiles
+            new_index = (current_index - 1) % total_profiles
+            st.session_state["profile_index"] = new_index
+            st.session_state["selected_label"] = search_df.iloc[new_index]["label"]
             st.rerun()
 
     with nav_col2:
         if st.button("⏭ Next"):
-            st.session_state["profile_index"] = (current_index + 1) % total_profiles
+            new_index = (current_index + 1) % total_profiles
+            st.session_state["profile_index"] = new_index
+            st.session_state["selected_label"] = search_df.iloc[new_index]["label"]
             st.rerun()
+
 
     # ✅ Preload images for nearby restaurants (after navigation updates)
     id_list = filtered_df["id"].tolist()
