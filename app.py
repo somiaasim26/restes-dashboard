@@ -505,6 +505,8 @@ elif section == "Restaurant Profile":
     search_df["id"] = search_df["id"].astype(str).str.strip()
     search_df["restaurant_name"] = search_df["restaurant_name"].astype(str).str.strip()
     search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"]
+    search_df = search_df.sort_values(by="restaurant_name").reset_index(drop=True)
+
     search_df = search_df.reset_index(drop=True)
 
     # ✅ Preload + cache first 150
