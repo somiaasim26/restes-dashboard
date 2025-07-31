@@ -552,23 +552,24 @@ elif section == "Restaurant Profile":
     current_row = filtered_df.iloc[current_index]
     # ✅ Only preload images around current restaurant
     id_list = filtered_df["id"].tolist()
-    preloaded_images = lazy_preload_images_subset(id_list, current_index, buffer=5)
 
 
     nav_col1, nav_col2 = st.columns(2)
     with nav_col1:
         if st.button("⏮ Back"):
             st.session_state["profile_index"] = (current_index - 1) % total_profiles
-            selected_row = filtered_df.iloc[st.session_state["profile_index"]]
-            st.session_state["selected_label"] = selected_row["label"]
             st.rerun()
 
     with nav_col2:
         if st.button("⏭ Next"):
             st.session_state["profile_index"] = (current_index + 1) % total_profiles
-            selected_row = filtered_df.iloc[st.session_state["profile_index"]]
-            st.session_state["selected_label"] = selected_row["label"]
             st.rerun()
+
+    # ✅ Preload images for nearby restaurants (after navigation updates)
+    id_list = filtered_df["id"].tolist()
+    preloaded_images = lazy_preload_images_subset(id_list, current_index, buffer=5)
+
+
 
     # --- Display Selected Restaurant Header ---
     st.subheader(f"🏪 {current_row.get('restaurant_name', '')}")
