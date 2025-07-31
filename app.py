@@ -142,27 +142,33 @@ def preload_images(image_type: str, ids: list, limit: int = 150):
 # ✅ Fetch individual image from Supabase
 @lru_cache(maxsize=500)
 def fetch_image_from_supabase(filename):
-    try:
-        url = f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            img = Image.open(BytesIO(response.content))
-            try:
-                for orientation in ExifTags.TAGS.keys():
-                    if ExifTags.TAGS[orientation] == 'Orientation':
-                        break
-                exif = img._getexif()
-                if exif:
-                    val = exif.get(orientation)
-                    if val == 3: img = img.rotate(180, expand=True)
-                    elif val == 6: img = img.rotate(270, expand=True)
-                    elif val == 8: img = img.rotate(90, expand=True)
-            except Exception:
-                pass
-            return img
-    except:
-        return None
+    base_urls = [
+        f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/{filename}",
+        f"https://ivresluijqsbmylqwolz.supabase.co/storage/v1/object/public/restaurant-images/All_Images/{filename}"
+    ]
+    
+    for url in base_urls:
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                img = Image.open(BytesIO(response.content))
+                try:
+                    for orientation in ExifTags.TAGS.keys():
+                        if ExifTags.TAGS[orientation] == 'Orientation':
+                            break
+                    exif = img._getexif()
+                    if exif:
+                        val = exif.get(orientation)
+                        if val == 3: img = img.rotate(180, expand=True)
+                        elif val == 6: img = img.rotate(270, expand=True)
+                        elif val == 8: img = img.rotate(90, expand=True)
+                except Exception:
+                    pass
+                return img
+        except:
+            continue
     return None
+
 
 
 
