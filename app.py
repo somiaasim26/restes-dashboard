@@ -129,16 +129,20 @@ dfs["final_treatment"] = load_final_treatment()
 
 # Show images and load them
 # ✅ Preload and cache restaurant images
-@st.cache_data(show_spinner="⚡ Preloading restaurant images (all types)...")
-def preload_images_all_types(ids: list, limit: int = 150):
+@st.cache_data(show_spinner=False)
+def lazy_preload_images_subset(ids: list, current_index: int, buffer: int = 5):
     preloaded = {}
-    for rid in ids[:limit]:
+    start = max(0, current_index - buffer)
+    end = min(len(ids), current_index + buffer + 1)
+    for i in range(start, end):
+        rid = ids[i]
         for img_type in ["front", "menu", "receipt"]:
             filename = f"{rid}_{img_type}.jpg"
             img = fetch_image_from_supabase(filename)
             if img:
                 preloaded[(rid, img_type)] = img
     return preloaded
+
 
 
 # ✅ Fetch individual image from Supabase
@@ -546,6 +550,10 @@ elif section == "Restaurant Profile":
     # --- Navigation ---
     current_index = st.session_state["profile_index"]
     current_row = filtered_df.iloc[current_index]
+    # ✅ Only preload images around current restaurant
+    id_list = filtered_df["id"].tolist()
+    preloaded_images = lazy_preload_images_subset(id_list, current_index, buffer=5)
+
 
     nav_col1, nav_col2 = st.columns(2)
     with nav_col1:
@@ -565,9 +573,7 @@ elif section == "Restaurant Profile":
     # --- Display Selected Restaurant Header ---
     st.subheader(f"🏪 {current_row.get('restaurant_name', '')}")
     st.markdown(f"**Restaurant {current_index + 1} of {total_profiles}**")
-    # ✅ Preload images for top 150 restaurants (front/menu/receipt)
-    preloaded_images = preload_images_all_types(filtered_df["id"].tolist(), limit=150)
-
+    
 
 
     # --- Images ---
