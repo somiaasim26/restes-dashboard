@@ -500,46 +500,46 @@ elif section == "Restaurant Profile":
         st.stop()
 
     # --- Prepare Label List ---
-    # ✅ Clean label list (ensures no weird string issues)
     search_df = filtered_df[["id", "restaurant_name"]].copy()
     search_df["id"] = search_df["id"].astype(str).str.strip()
     search_df["restaurant_name"] = search_df["restaurant_name"].astype(str).str.strip()
     search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"]
     search_df = search_df.sort_values(by="restaurant_name").reset_index(drop=True)
 
-    search_df = search_df.reset_index(drop=True)
-
-    # ✅ Preload + cache first 150
+    # ✅ Preload and cache label list (sorted, unique)
     @st.cache_data
-    def preload_search_labels(df, preload_limit=150):
-        top = df.head(preload_limit)["label"].tolist()
-        rest = df.iloc[preload_limit:]["label"].tolist()
-        return top + sorted(set(rest) - set(top))
+    def preload_label_map(df, preload_limit=150):
+        df = df.copy()
+        df = df.sort_values(by="restaurant_name")
+        top = df.head(preload_limit)
+        rest = df.iloc[preload_limit:]
+        combined = pd.concat([top, rest]).drop_duplicates(subset=["label"])
+        return dict(zip(combined["label"], combined["id"]))  # label → id map
 
-    label_list = preload_search_labels(search_df)
+    label_map = preload_label_map(search_df)
+    label_list = list(label_map.keys())
 
-    # ✅ Restore previous selection
-    selected_label = st.session_state.get("selected_label")
+    # ✅ Restore selection
+    selected_label = st.session_state.get("selected_label", label_list[0])
     if selected_label not in label_list:
         selected_label = label_list[0]
 
-    # ✅ Show selectbox with highlight
+    # ✅ Dropdown UI
     selected_label = st.selectbox(
         "🔎 Search by ID or Name",
         options=label_list,
         index=label_list.index(selected_label),
         key="restaurant_searchbox"
     )
-    
 
-    # ✅ Store and update
+    # ✅ Sync selected values
     st.session_state["selected_label"] = selected_label
-    selected_id = selected_label.split(" - ")[0].strip()
-    matching_index = search_df[search_df["id"] == selected_id].index
+    selected_id = label_map[selected_label]
 
+    # ✅ Update profile index for nav + current_row
+    matching_index = filtered_df[filtered_df["id"] == selected_id].index
     if not matching_index.empty:
         st.session_state["profile_index"] = int(matching_index[0])
-
 
     # --- Navigation ---
     current_index = st.session_state["profile_index"]
