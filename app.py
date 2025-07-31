@@ -757,13 +757,13 @@ elif section == "Restaurant Profile":
             "longitude": "Longitude", "reason": "Skip Reason", "NTN": "NTN", "timestamp": "Submitted At"
         })
 
-        st.markdown("### ❌ Skipped Restaurants (Notice Not Sent)")
-        if display_skipped.empty:
-            st.info("✅ No skipped restaurants yet.")
-        else:
-            st.dataframe(display_skipped, use_container_width=True)
-            csv_skipped = display_skipped.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Download Skipped Restaurants (CSV)", csv_skipped, file_name="skipped_restaurants.csv")
+        with st.expander("❌ Skipped Restaurants (Notice Not Sent)", expanded=False):
+            if display_skipped.empty:
+                st.info("✅ No skipped restaurants yet.")
+            else:
+                st.dataframe(display_skipped, use_container_width=True)
+                csv_skipped = display_skipped.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download Skipped Restaurants (CSV)", csv_skipped, file_name="skipped_restaurants.csv")
 
         # ---------- APPROVED ----------
         approved_df = treated_df[~treated_df["id"].isin(skipped_ids)].copy()
