@@ -129,15 +129,17 @@ dfs["final_treatment"] = load_final_treatment()
 
 # Show images and load them
 # ✅ Preload and cache restaurant images
-@st.cache_data(show_spinner="Preloading restaurant images...")
-def preload_images(image_type: str, ids: list, limit: int = 150):
+@st.cache_data(show_spinner="⚡ Preloading restaurant images (all types)...")
+def preload_images_all_types(ids: list, limit: int = 150):
     preloaded = {}
     for rid in ids[:limit]:
-        filename = f"{rid}_{image_type}.jpg"
-        img = fetch_image_from_supabase(filename)
-        if img:
-            preloaded[rid] = img
+        for img_type in ["front", "menu", "receipt"]:
+            filename = f"{rid}_{img_type}.jpg"
+            img = fetch_image_from_supabase(filename)
+            if img:
+                preloaded[(rid, img_type)] = img
     return preloaded
+
 
 # ✅ Fetch individual image from Supabase
 @lru_cache(maxsize=500)
@@ -563,6 +565,9 @@ elif section == "Restaurant Profile":
     # --- Display Selected Restaurant Header ---
     st.subheader(f"🏪 {current_row.get('restaurant_name', '')}")
     st.markdown(f"**Restaurant {current_index + 1} of {total_profiles}**")
+    # ✅ Preload images for top 150 restaurants (front/menu/receipt)
+    preloaded_images = preload_images_all_types(filtered_df["id"].tolist(), limit=150)
+
 
 
     # --- Images ---
@@ -572,11 +577,12 @@ elif section == "Restaurant Profile":
     for idx, (img_type, label) in enumerate(image_types.items()):
         with cols[idx]:
             st.markdown(f"#### {label}")
-            img = fetch_image_from_supabase(f"{selected_id}_{img_type}.jpg")
+            img = preloaded_images.get((selected_id, img_type)) or fetch_image_from_supabase(f"{selected_id}_{img_type}.jpg")
             if img:
                 st.image(img, use_container_width=True)
             else:
                 st.info("Image not available.")
+
 
     # --- Basic Info ---
     st.markdown("### 🗃️ Basic Info")
@@ -586,7 +592,6 @@ elif section == "Restaurant Profile":
         ["restaurant_address", current_row.get("restaurant_address", "")],
         ["ntn", current_row.get("ntn_final", "")],
         ["🔴Compliance Status (Old)", current_row.get("formality_old", "")],
-        ["🟢Compliance Status (New)", current_row.get("formality_new", "")],
         ["officer_id", current_row.get("officer_id", "")],
         ["latitude", current_row.get("latitude", "")],
         ["longitude", current_row.get("longitude", "")]
