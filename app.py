@@ -171,8 +171,6 @@ def fetch_image_from_supabase(filename):
 
 
 
-
-
 # --- Utility: Clean ID Columns ---
 def clean_ids(df, id_cols):
     for col in id_cols:
