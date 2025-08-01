@@ -774,13 +774,13 @@ elif section == "Restaurant Profile":
             "latitude": "Latitude", "longitude": "Longitude"
         })
 
-        st.markdown("### ✅ Approved Restaurants (Send Notice)")
-        if display_approved.empty:
-            st.info("✅ No approved restaurants left (all skipped).")
-        else:
-            st.dataframe(display_approved, use_container_width=True)
-            csv_approved = display_approved.to_csv(index=False).encode("utf-8")
-            st.download_button("📤 Download Approved Notice List (CSV)", csv_approved, file_name="approved_notice.csv")
+        with st.expander("✅ Approved Restaurants (Send Notice)", expanded=False):
+            if display_approved.empty:
+                st.info("✅ No approved restaurants left (all skipped).")
+            else:
+                st.dataframe(display_approved, use_container_width=True)
+                csv_approved = display_approved.to_csv(index=False).encode("utf-8")
+                st.download_button("📤 Download Approved Notice List (CSV)", csv_approved, file_name="approved_notice.csv")
 
     except Exception as e:
         st.error(f"❌ Could not load exportable data: {e}")
