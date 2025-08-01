@@ -452,6 +452,8 @@ elif section == "Restaurant Profile":
     officer_id = officer_ids.get(user_email)
 
     # --- Load and Prepare Data ---
+    dfs["final_treatment"] = load_final_treatment()  # Force refresh to get latest schema
+    df_all = dfs["final_treatment"].copy()
     df_all = dfs.get("final_treatment", pd.DataFrame()).copy()
     df_all.columns = df_all.columns.str.strip().str.lower()
     df_all["id"] = df_all["id"].astype(str)
@@ -549,6 +551,19 @@ elif section == "Restaurant Profile":
     st.session_state["selected_label"] = selected_label
     selected_id = label_map[selected_label]
 
+    # --- Display Placeholder Buttons for Timeline Info ---
+    st.markdown("### Notice & Follow-up")
+    
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        st.button("📬 Notice Sent", disabled=True)
+    with b2:
+        st.button("📅 Compliance Due", disabled=True)
+    with b3:
+        st.button("⏰ Follow-up Due", disabled=True)
+
+
+    
     # ✅ Update profile index for nav + current_row
     if "profile_index" not in st.session_state:
         matching_index = filtered_df[filtered_df["id"] == selected_id].index
