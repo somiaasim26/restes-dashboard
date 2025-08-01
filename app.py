@@ -507,10 +507,9 @@ elif section == "Restaurant Profile":
     )
 
     # ✅ Sync profile_index with dropdown (only if not just updated by nav)
-    if "profile_index" not in st.session_state or st.session_state["selected_label"] != selected_label:
-        matching_index = search_df[search_df["label"] == selected_label].index
-        if not matching_index.empty:
-            st.session_state["profile_index"] = int(matching_index[0])
+    matching_index = search_df[search_df["label"] == selected_label].index
+    if not matching_index.empty:
+        st.session_state["profile_index"] = int(matching_index[0])
 
 
     # ✅ Sync selected values
