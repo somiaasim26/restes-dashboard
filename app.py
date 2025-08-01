@@ -154,6 +154,18 @@ if st.session_state.get("section") == "Welcome":
         st.rerun()
     st.stop()
 
+@st.cache_data
+def load_final_treatment():
+    df = load_table("final_treatment")
+    df.columns = df.columns.str.strip().str.lower()
+    df["id"] = df["id"].astype(str)
+    df["restaurant_name"] = df["restaurant_name"].astype(str)
+    df["label"] = df["id"] + " - " + df["restaurant_name"]
+    df["formality_old"] = df["formality_old"].fillna("").str.strip().str.lower()
+    df["ntn_final"] = df["ntn_final"].astype(str).str.strip()
+    return df
+
+
 # --- Sidebar Setup ---
 user_email = st.session_state.get("email")
 if user_email in special_access_users:
@@ -377,7 +389,7 @@ elif section == "Data Browser":
 
 
 # ---------------------- Restaurant Profile Header ----------------------
-# ---------------------- Restaurant Profile Header ----------------------
+
 elif section == "Restaurant Profile":
 
     st.title("📋 Restaurant Summary Profile")
@@ -391,9 +403,7 @@ elif section == "Restaurant Profile":
     officer_id = officer_ids.get(user_email)
 
     # --- Load and Prepare Data ---
-    dfs["final_treatment"] = load_final_treatment()  # Force refresh to get latest schema
-    df_all = dfs["final_treatment"].copy()
-    df_all = dfs.get("final_treatment", pd.DataFrame()).copy()
+    df_all = load_final_treatment().copy()
     df_all.columns = df_all.columns.str.strip().str.lower()
     df_all["id"] = df_all["id"].astype(str)
     df_all["restaurant_name"] = df_all["restaurant_name"].astype(str)
