@@ -496,7 +496,7 @@ elif section == "Restaurant Profile":
             st.rerun()
 
     # --- Notice Timeline Buttons (placeholder) ---
-    st.markdown("### 📌 Notice & Follow-up Timeline")
+    st.markdown("### Notice & Follow-up")
     b1, b2, b3 = st.columns(3)
     with b1: st.button("📬 Notice Sent", disabled=True)
     with b2: st.button("📅 Compliance Due", disabled=True)
