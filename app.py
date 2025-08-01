@@ -378,7 +378,8 @@ elif section == "Data Browser":
 
 # ---------------------- Restaurant Profile Header ----------------------
 # ---------------------- Restaurant Profile Header ----------------------
-    elif section == "Restaurant Profile":
+elif section == "Restaurant Profile":
+
     st.title("📋 Restaurant Summary Profile")
 
     # --- Officer Mapping ---
@@ -389,21 +390,24 @@ elif section == "Data Browser":
     }
     officer_id = officer_ids.get(user_email)
 
-    @st.cache_data
-    def load_final_treatment():
-        df = load_table("final_treatment")
-        df.columns = df.columns.str.strip().str.lower()
-        df["id"] = df["id"].astype(str)
-        df["restaurant_name"] = df["restaurant_name"].astype(str)
-        df["label"] = df["id"] + " - " + df["restaurant_name"]
-        return df
+    # --- Load and Prepare Data ---
+    dfs["final_treatment"] = load_final_treatment()  # Force refresh to get latest schema
+    df_all = dfs["final_treatment"].copy()
+    df_all = dfs.get("final_treatment", pd.DataFrame()).copy()
+    df_all.columns = df_all.columns.str.strip().str.lower()
+    df_all["id"] = df_all["id"].astype(str)
+    df_all["restaurant_name"] = df_all["restaurant_name"].astype(str)
+    df_all["label"] = df_all["id"] + " - " + df_all["restaurant_name"]
+    df_all["formality_old"] = df_all["formality_old"].fillna("").str.strip().str.lower()
+    df_all["ntn_final"] = df_all["ntn_final"].astype(str).str.strip()
 
-    df_all = load_final_treatment()
-
+    # Officer filter
+    # Filter only if officer-level access
     if officer_id and user_email in special_access_users:
         df_all = df_all[df_all["officer_id"].astype(str) == officer_id]
 
-    # --- Init Session State ---
+
+    # --- Initialize Session State ---
     for key, default in {
         "profile_filter": "unregistered",
         "profile_index": 0,
@@ -413,7 +417,7 @@ elif section == "Data Browser":
             st.session_state[key] = default
 
     # --- Filter Buttons ---
-    st.markdown("### 🔍 Filter Restaurants")
+    st.markdown("### 🔍 Filter Restaurants by Status")
     filter_map = {
         "registered": "🟢 Registered",
         "unregistered": "❌ Unregistered",
@@ -423,91 +427,151 @@ elif section == "Data Browser":
     btn_cols = st.columns(len(filter_map))
     for i, (key, label) in enumerate(filter_map.items()):
         if btn_cols[i].button(label):
-            st.session_state.update(profile_filter=key, profile_index=0, selected_label=None)
+            st.session_state["profile_filter"] = key
+            st.session_state["profile_index"] = 0
+            st.session_state["selected_label"] = None
             st.rerun()
 
+    # --- Apply Filter ---
     filt = st.session_state["profile_filter"]
     if filt == "ntn":
         filtered_df = df_all[df_all["ntn_final"].notna() & (df_all["ntn_final"] != "")]
     else:
         filtered_df = df_all[df_all["formality_old"] == filt]
 
-    if filtered_df.empty:
-        st.warning("No restaurants found.")
+    filtered_df = filtered_df.reset_index(drop=True)
+    total_profiles = len(filtered_df)
+
+    if total_profiles == 0:
+        st.warning("No restaurants match this filter.")
         st.stop()
 
-    # --- Label Map ---
-    @st.cache_data
-    def prepare_label_map(df):
-        df = df.copy()
-        df["label"] = df["id"] + " - " + df["restaurant_name"]
-        df = df.sort_values(by="restaurant_name").drop_duplicates("label")
-        return df[["id", "label"]], dict(zip(df["label"], df["id"]))
+    # --- Prepare Label List ---
+    search_df = filtered_df[["id", "restaurant_name"]].copy()
+    search_df["id"] = search_df["id"].astype(str).str.strip()
+    search_df["restaurant_name"] = search_df["restaurant_name"].astype(str).str.strip()
+    search_df["label"] = search_df["id"] + " - " + search_df["restaurant_name"]
+    search_df = search_df.sort_values(by="restaurant_name").reset_index(drop=True)
 
-    search_df, label_map = prepare_label_map(filtered_df)
+    # ✅ Preload and cache label list (sorted, unique)
+    @st.cache_data
+    def preload_label_map(df, preload_limit=150):
+        df = df.copy()
+        df = df.sort_values(by="restaurant_name")
+        top = df.head(preload_limit)
+        rest = df.iloc[preload_limit:]
+        combined = pd.concat([top, rest]).drop_duplicates(subset=["label"])
+        return dict(zip(combined["label"], combined["id"]))  # label → id map
+
+    label_map = preload_label_map(search_df)
     label_list = list(label_map.keys())
 
+    # ✅ Restore selection
     selected_label = st.session_state.get("selected_label", label_list[0])
     if selected_label not in label_list:
         selected_label = label_list[0]
 
-    selected_label = st.selectbox("🔎 Search by ID or Name", label_list, index=label_list.index(selected_label))
+    # ✅ Dropdown UI
+    selected_label = st.selectbox(
+        "🔎 Search by ID or Name",
+        options=label_list,
+        index=label_list.index(selected_label),
+        key="restaurant_searchbox"
+    )
+
+    # ✅ Sync profile_index with dropdown (only if not just updated by nav)
+    if "profile_index" not in st.session_state or st.session_state["selected_label"] != selected_label:
+        matching_index = search_df[search_df["label"] == selected_label].index
+        if not matching_index.empty:
+            st.session_state["profile_index"] = int(matching_index[0])
+
+
+    # ✅ Sync selected values
     st.session_state["selected_label"] = selected_label
     selected_id = label_map[selected_label]
 
-    # --- Update Profile Index ---
-    matching_index = search_df[search_df["label"] == selected_label].index
-    if not matching_index.empty:
-        st.session_state["profile_index"] = int(matching_index[0])
+    # --- Display Placeholder Buttons for Timeline Info ---
+    st.markdown("### Notice & Follow-up")
+    
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        st.button("📬 Notice Sent", disabled=True)
+    with b2:
+        st.button("📅 Compliance Due", disabled=True)
+    with b3:
+        st.button("⏰ Follow-up Due", disabled=True)
 
-    current_index = st.session_state["profile_index"]
-    current_row = filtered_df.iloc[current_index]
-    id_list = filtered_df["id"].tolist()
 
-    # --- Timeline Buttons ---
-    st.markdown("### 📌 Notice & Follow-up Timeline")
-    col1, col2, col3 = st.columns(3)
-    with col1: st.button("📬 Notice Sent", disabled=True)
-    with col2: st.button("📅 Compliance Due", disabled=True)
-    with col3: st.button("⏰ Follow-up Due", disabled=True)
+    
+    # ✅ Update profile index for nav + current_row
+    if "profile_index" not in st.session_state:
+        matching_index = filtered_df[filtered_df["id"] == selected_id].index
+        if not matching_index.empty:
+            st.session_state["profile_index"] = int(matching_index[0])
+
 
     # --- Navigation ---
-    nav1, nav2 = st.columns(2)
-    with nav1:
+    current_index = st.session_state["profile_index"]
+    current_row = filtered_df.iloc[current_index]
+    # ✅ Only preload images around current restaurant
+    id_list = filtered_df["id"].tolist()
+
+
+    nav_col1, nav_col2 = st.columns(2)
+    with nav_col1:
         if st.button("⏮ Back"):
-            new_index = (current_index - 1) % len(filtered_df)
-            st.session_state.update(profile_index=new_index, selected_label=search_df.iloc[new_index]["label"])
-            st.rerun()
-    with nav2:
-        if st.button("⏭ Next"):
-            new_index = (current_index + 1) % len(filtered_df)
-            st.session_state.update(profile_index=new_index, selected_label=search_df.iloc[new_index]["label"])
+            new_index = (current_index - 1) % total_profiles
+            st.session_state["profile_index"] = new_index
+            st.session_state["selected_label"] = search_df.iloc[new_index]["label"]
             st.rerun()
 
-    # --- Image Display ---
+    with nav_col2:
+        if st.button("⏭ Next"):
+            new_index = (current_index + 1) % total_profiles
+            st.session_state["profile_index"] = new_index
+            st.session_state["selected_label"] = search_df.iloc[new_index]["label"]
+            st.rerun()
+
+
+    # ✅ Preload images for nearby restaurants (after navigation updates)
+    id_list = filtered_df["id"].tolist()
+    preloaded_images = lazy_preload_images_subset(id_list, current_index, buffer=5)
+
+
+
+    # --- Display Selected Restaurant Header ---
+    st.subheader(f"🏪 {current_row.get('restaurant_name', '')}")
+    st.markdown(f"**Restaurant {current_index + 1} of {total_profiles}**")
+    
+
+
+    # --- Images ---
     st.markdown("### 🖼️ Restaurant Images")
-    image_types = {"front": "📸 Front", "menu": "🍽️ Menu", "receipt": "🧾 Receipt"}
+    image_types = {"front": "📸 Front Image", "menu": "🍽️ Menu Image", "receipt": "🧾 Receipt Image"}
     cols = st.columns(3)
     for idx, (img_type, label) in enumerate(image_types.items()):
         with cols[idx]:
-            img = fetch_image_from_supabase(f"{selected_id}_{img_type}.jpg")
             st.markdown(f"#### {label}")
+            img = preloaded_images.get((selected_id, img_type)) or fetch_image_from_supabase(f"{selected_id}_{img_type}.jpg")
             if img:
                 st.image(img, use_container_width=True)
             else:
-                st.info("No image available.")
+                st.info("Image not available.")
 
-    # --- Basic Info Table ---
+
+    # --- Basic Info ---
     st.markdown("### 🗃️ Basic Info")
-    st.table(pd.DataFrame([
-        ["ID", current_row.get("id", "")],
-        ["Name", current_row.get("restaurant_name", "")],
-        ["Address", current_row.get("restaurant_address", "")],
-        ["NTN", current_row.get("ntn_final", "")],
-        ["Status", current_row.get("formality_old", "")],
-        ["Officer ID", current_row.get("officer_id", "")]
-    ], columns=["Field", "Value"]))
-
+    info_df = pd.DataFrame([
+        ["id", current_row.get("id", "")],
+        ["restaurant_name", current_row.get("restaurant_name", "")],
+        ["restaurant_address", current_row.get("restaurant_address", "")],
+        ["ntn", current_row.get("ntn_final", "")],
+        ["🔴Compliance Status (Old)", current_row.get("formality_old", "")],
+        ["officer_id", current_row.get("officer_id", "")],
+        ["latitude", current_row.get("latitude", "")],
+        ["longitude", current_row.get("longitude", "")]
+    ], columns=["Field", "Value"])
+    st.table(info_df)
 ####
     # --- Survey Info (from final_treatment) ---
     st.markdown("### 🏢 Survey Information")
