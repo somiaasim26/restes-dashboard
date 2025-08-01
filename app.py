@@ -115,6 +115,23 @@ def fetch_image_from_supabase(filename):
         except: continue
     return None
 
+@st.cache_data
+def lazy_preload_images_subset(id_list, current_index, buffer=5):
+    """
+    Preloads a small buffer of images around the current index for smoother navigation.
+    """
+    preload_range = range(max(0, current_index - buffer), min(len(id_list), current_index + buffer + 1))
+    preloaded_images = {}
+
+    for i in preload_range:
+        rest_id = id_list[i]
+        for img_type in ["front", "menu", "receipt"]:
+            key = (rest_id, img_type)
+            preloaded_images[key] = fetch_image_from_supabase(f"{rest_id}_{img_type}.jpg")
+
+    return preloaded_images
+
+
 
 # --- Utility: Clean ID Columns ---
 def clean_ids(df, id_cols):
