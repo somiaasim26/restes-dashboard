@@ -633,7 +633,7 @@ elif section == "Restaurant Profile":
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Failed to issue notice: {e}")
-        st.button("📬 Notice Sent", key=f"notice_sent_{selected_id}")
+        
     else:
         st.warning("⚠️ Unknown formality status")
 
