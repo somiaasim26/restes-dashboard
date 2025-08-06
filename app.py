@@ -691,6 +691,15 @@ elif section == "Restaurant Profile":
     else:
         st.warning("⚠️ Unknown formality status")
 
+    # Log this action
+    supabase.table("activity_log").insert({
+        "restaurant_id": selected_id,
+        "officer_email": user_email,
+        "action": "Issue Notice",
+        "result": selected_reason
+    }).execute()
+
+
 
     # --- Skip Reason ---
     st.markdown("### 📝 Reason for Not Sending Notice")
@@ -722,7 +731,13 @@ elif section == "Restaurant Profile":
         except Exception as e:
             st.error(f"❌ Failed to submit reason: {e}")
 
-    
+        supabase.table("activity_log").insert({
+        "restaurant_id": selected_id,
+        "officer_email": user_email,
+        "action": "Skip Reason",
+        "result": selected_reason
+    }).execute()
+
     #-------------------------------------------------------------
 
     # -------------------- TRACKER: Issued Notices by Officer --------------------
@@ -861,4 +876,24 @@ elif section == "Restaurant Profile":
         if st.button("📤 Download All Restaurants (CSV)"):
             csv = csv_data.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, "all_restaurants.csv", "text/csv")
+
+    # --- Officer Activity Log ---
+    with st.expander("🗂️ View Your Activity Log", expanded=False):
+        try:
+            logs = supabase.table("activity_log").select("*").eq("officer_email", user_email).order("timestamp", desc=True).execute().data
+            if not logs:
+                st.info("No activity recorded yet.")
+            else:
+                log_df = pd.DataFrame(logs)
+                log_df["timestamp"] = pd.to_datetime(log_df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M")
+                log_df = log_df.rename(columns={
+                    "timestamp": "Date",
+                    "action": "Action",
+                    "restaurant_id": "Restaurant",
+                    "result": "Result"
+                })
+                st.dataframe(log_df[["Date", "Action", "Restaurant", "Result"]], use_container_width=True)
+        except Exception as e:
+            st.error(f"❌ Failed to load activity log: {e}")
+
 
