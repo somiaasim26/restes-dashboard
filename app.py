@@ -547,7 +547,7 @@ elif section == "Restaurant Profile":
     # Buttons
     b1, b2, b3 = st.columns(3)
     with b1:
-        st.button("📬 Notice Sent", disabled=not has_notice)
+        st.button("📬 Notice Sent", disabled=False)
 
     with b2:
         st.button("📅 Compliance Due", disabled=False)  # logic to be added later
