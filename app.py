@@ -495,12 +495,48 @@ elif section == "Restaurant Profile":
             )
             st.rerun()
 
-    # --- Notice Timeline Buttons (placeholder) ---
-    st.markdown("### Notice & Follow-up")
+    # --- Notice & Follow-up Section ---
+    st.markdown("### 📩 Notice & Follow-up")
+
+    # Load issued notices for this restaurant
+    try:
+        issued_data = supabase.table("enforcement_tracking") \
+            .select("reason, issued, issued_at") \
+            .eq("restaurant_id", selected_id) \
+            .order("issued_at", desc=True) \
+            .limit(1).execute().data
+
+        has_notice = False
+        notice_reason = ""
+        if issued_data and issued_data[0].get("issued") == True:
+            has_notice = True
+            notice_reason = issued_data[0].get("reason", "Notice Issued")
+            issued_time = pd.to_datetime(issued_data[0]["issued_at"]).strftime("%d %b %Y")
+
+            st.markdown(f"""
+            <div style='background-color: #fef3c7; border-left: 6px solid #f59e0b;
+                padding: 10px 15px; border-radius: 6px; margin-bottom: 10px;'>
+                <strong>📌 Notice Already Issued</strong><br>
+                Reason: <em>{notice_reason}</em><br>
+                Issued on: {issued_time}
+            </div>
+            """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"❌ Could not check notice status: {e}")
+        has_notice = False
+
+    # Buttons
     b1, b2, b3 = st.columns(3)
-    with b1: st.button("📬 Notice Sent", disabled=True)
-    with b2: st.button("📅 Compliance Due", disabled=True)
-    with b3: st.button("⏰ Follow-up Due", disabled=True)
+    with b1:
+        st.button("📬 Notice Sent", disabled=not has_notice)
+
+    with b2:
+        st.button("📅 Compliance Due", disabled=False)  # logic to be added later
+
+    with b3:
+        st.button("⏰ Follow-up Due", disabled=False)  # logic to be added later
+
 
     # --- Restaurant Name Header ---
     st.subheader(f"🏪 {current_row['restaurant_name']}")
