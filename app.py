@@ -410,6 +410,9 @@ elif section == "Data Browser":
 elif section == "Restaurant Profile":
 
     st.title("📋 Restaurant Summary Profile")
+    # --- Officer Identity ---
+    st.markdown(f"👮 Logged in as: `{user_email}`")
+
 
     # --- Officer Mapping ---
     officer_ids = {
@@ -423,6 +426,21 @@ elif section == "Restaurant Profile":
     df_all = load_final_treatment().copy()
     if officer_id and user_email in special_access_users:
         df_all = df_all[df_all["officer_id"].astype(str) == officer_id]
+
+    # --- Progress Counter ---
+    total_assigned = df_all.shape[0]
+
+    # Load issued + skipped restaurant IDs
+    issued_ids = supabase.table("enforcement_tracking").select("restaurant_id").eq("officer_email", user_email).execute().data
+    skip_ids = supabase.table("notice_skip_reasons").select("restaurant_id").eq("officer_email", user_email).execute().data
+
+    issued_set = set([row["restaurant_id"] for row in issued_ids])
+    skipped_set = set([row["restaurant_id"] for row in skip_ids])
+    completed_ids = issued_set.union(skipped_set)
+
+    completed = df_all[df_all["id"].isin(completed_ids)].shape[0]
+    st.info(f"📈 You've completed **{completed} out of {total_assigned}** assigned restaurants.")
+
 
     # --- Session State Setup ---
     for key, default in {
