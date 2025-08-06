@@ -490,7 +490,7 @@ elif section == "Restaurant Profile":
     # --- Sync Session State from Selection ---
     st.session_state["selected_label"] = selected_label
     selected_id = label_map[selected_label]
-    current_index = filtered_df[filtered_df["id"] == selected_id].index[0]
+    current_index = filtered_df.index.get_loc(filtered_df[filtered_df["id"] == selected_id].index[0])
     st.session_state["profile_index"] = current_index
     current_row = filtered_df.iloc[current_index]
 
