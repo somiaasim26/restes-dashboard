@@ -586,6 +586,57 @@ elif section == "Restaurant Profile":
 
 
 ##########################################################
+    # ---------------- Issue Notice + Reason Selection ----------------
+
+    status = current_row.get("formality_old", "").strip().lower()
+    st.markdown("### 📤 Issue Notice & Status Actions")
+
+    notice_reasons = {
+        "unregistered": [
+            "To enforce registration with PRA",
+            "Repeated refusal to register despite visits",
+            "High turnover suspected, still unregistered"
+        ],
+        "registered": [
+            "Not filing despite being registered",
+            "Filing inconsistently (1 or 2 months)",
+            "No filing for past 3 months"
+        ],
+        "filed": [
+            "Stopped filing recently (penalty applicable)",
+            "Late filing for multiple months",
+            "Tax filing seems inaccurate"
+        ]
+    }
+
+    status_label = {
+        "unregistered": "🔴 Unregistered",
+        "registered": "🟠 Registered",
+        "filed": "✅ Filing"
+    }
+
+    if status in notice_reasons:
+        st.success(f"This restaurant is **{status_label[status]}**")
+
+        selected_reason = st.selectbox("📌 Select reason for issuing notice:", notice_reasons[status], key=f"notice_reason_{selected_id}")
+        if st.button("🚀 Issue Notice", key=f"issue_notice_btn_{selected_id}"):
+            try:
+                supabase.table("enforcement_tracking").insert({
+                    "restaurant_id": selected_id,
+                    "officer_email": user_email,
+                    "issued": True,
+                    "status": status,
+                    "reason": selected_reason,
+                    "issued_at": datetime.utcnow().isoformat()
+                }).execute()
+                st.success("✅ Notice issued successfully!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Failed to issue notice: {e}")
+        st.button("📬 Notice Sent", key=f"notice_sent_{selected_id}")
+    else:
+        st.warning("⚠️ Unknown formality status")
+
 
     # --- Skip Reason ---
     st.markdown("### 📝 Reason for Not Sending Notice")
@@ -617,9 +668,51 @@ elif section == "Restaurant Profile":
         except Exception as e:
             st.error(f"❌ Failed to submit reason: {e}")
 
+    
+    #-------------------------------------------------------------
+
+    # -------------------- TRACKER: Issued Notices by Officer --------------------
+
+    st.markdown("### 📊 Issued Notices Tracker (Officer-wise)")
+
+    try:
+        notice_data = supabase.table("enforcement_tracking").select("*").execute().data
+        df_notices = pd.DataFrame(notice_data)
+
+        if df_notices.empty:
+            st.info("No issued notices found.")
+        else:
+            df_notices["issued_at"] = pd.to_datetime(df_notices["issued_at"]).dt.strftime("%Y-%m-%d %H:%M")
+            df_notices = df_notices.rename(columns={
+                "restaurant_id": "Restaurant ID",
+                "officer_email": "Officer",
+                "status": "Formality Status",
+                "reason": "Notice Reason",
+                "issued_at": "Issued At"
+            })
+
+            # Filter UI
+            officer_filter = st.selectbox("👮 Filter by Officer", ["All"] + sorted(df_notices["Officer"].unique().tolist()))
+            status_filter = st.selectbox("📄 Filter by Formality Status", ["All"] + sorted(df_notices["Formality Status"].unique().tolist()))
+
+            filtered_df = df_notices.copy()
+            if officer_filter != "All":
+                filtered_df = filtered_df[filtered_df["Officer"] == officer_filter]
+            if status_filter != "All":
+                filtered_df = filtered_df[filtered_df["Formality Status"] == status_filter]
+
+            st.dataframe(filtered_df, use_container_width=True)
+
+            # Export button
+            csv_export = filtered_df.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV of Issued Notices", csv_export, file_name="issued_notices.csv")
+
+    except Exception as e:
+        st.error(f"❌ Could not load issued notices: {e}")
+
 
     # ---------------------- EXPORT + TABLES ----------------------
-
+ 
     st.markdown("### 🧾 Export Restaurant Data as CSV")
 
     # Load data
