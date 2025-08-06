@@ -589,7 +589,7 @@ elif section == "Restaurant Profile":
     # ---------------- Issue Notice + Reason Selection ----------------
 
     status = current_row.get("formality_old", "").strip().lower()
-    st.markdown("### 📤 Issue Notice & Status Actions")
+    st.markdown("### 📤 Issue Notice")
 
     notice_reasons = {
         "unregistered": [
@@ -611,7 +611,7 @@ elif section == "Restaurant Profile":
 
     status_label = {
         "unregistered": "🔴 Unregistered",
-        "registered": "🟠 Registered",
+        "registered": "🟢 Registered",
         "filed": "✅ Filing"
     }
 
