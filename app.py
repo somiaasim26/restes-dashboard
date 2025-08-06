@@ -540,6 +540,25 @@ elif section == "Restaurant Profile":
 
     # --- Restaurant Name Header ---
     st.subheader(f"🏪 {current_row['restaurant_name']}")
+    # Registration + Filing badges
+    formality_old = current_row.get("formality_old", "").strip().lower()
+    formality_new = current_row.get("formality_new", "").strip().lower()
+
+    badges = []
+
+    if formality_old == "registered":
+        badges.append("<span style='background-color: #22c55e; color: white; padding: 4px 8px; border-radius: 5px;'>🟢 Registered</span>")
+    elif formality_old == "unregistered":
+        badges.append("<span style='background-color: #ef4444; color: white; padding: 4px 8px; border-radius: 5px;'>🔴 Unregistered</span>")
+
+    if formality_new == "filed":
+        badges.append("<span style='background-color: #10b981; color: white; padding: 4px 8px; border-radius: 5px;'>✅ Filed</span>")
+    elif formality_old == "registered" and formality_new != "filed":
+        badges.append("<span style='background-color: #facc15; color: black; padding: 4px 8px; border-radius: 5px;'>⚠️ Filing Pending</span>")
+
+    badges_html = " ".join(badges)
+    st.markdown(f"### 🏪 {current_row['restaurant_name']}<br>{badges_html}", unsafe_allow_html=True)
+
     st.markdown(f"**Restaurant {current_index + 1} of {len(filtered_df)}**")
 
     # --- Restaurant Images ---
