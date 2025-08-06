@@ -562,7 +562,7 @@ elif section == "Restaurant Profile":
         ["restaurant_name", current_row.get("restaurant_name", "")],
         ["restaurant_address", current_row.get("restaurant_address", "")],
         ["ntn", current_row.get("ntn_final", "")],
-        ["🔴Compliance Status (Old)", current_row.get("formality_old", "")],
+        ["Compliance Status", current_row.get("formality_old", "")],
         ["officer_id", current_row.get("officer_id", "")],
         ["latitude", current_row.get("latitude", "")],
         ["longitude", current_row.get("longitude", "")]
